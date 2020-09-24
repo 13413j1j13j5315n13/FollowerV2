@@ -18,8 +18,10 @@ namespace FollowerV2
 
         public override bool Initialise()
         {
-            Settings.Profiles.OnValueSelected += ProfileChanged;
-            Settings.FollowerModeSettings.NearbyPlayers.OnValueSelected += NearbyPlayerAsLeaderSelected;
+            Settings.Profiles.OnValueSelected += OnProfileChange;
+            Settings.FollowerModeSettings.FollowerModes.OnValueSelected += OnFollowerModeChange; // local or network
+            Settings.FollowerModeSettings.NearbyPlayers.OnValueSelected += OnNearbyPlayerAsLeaderSelect;
+            Settings.LeaderModeSettings.SetMyselfAsLeader.OnPressed += OnSetMyselfAsLeaderToPropagateChanged;
 
             _nearbyPlayersUpdateCoroutine = new Coroutine(UpdateNearbyPlayersWork(), this, "Update nearby players");
 
@@ -34,17 +36,20 @@ namespace FollowerV2
             Settings.DrawSettings();
         }
 
-        private void ProfileChanged(string profile)
+        private void OnProfileChange(string profile)
         {
+            LogMsgWithVerboseDebug("OnProfileChange called");
             LogMsgWithDebug($"Profile changed to: {profile}");
 
             if (profile == ProfilesEnum.Follower)
             {
 
-            } else if (profile == ProfilesEnum.Leader)
+            }
+            else if (profile == ProfilesEnum.Leader)
             {
 
-            } else if (profile == ProfilesEnum.Disable)
+            }
+            else if (profile == ProfilesEnum.Disable)
             {
 
             }
@@ -54,21 +59,40 @@ namespace FollowerV2
             }
         }
 
-        private void NearbyPlayerAsLeaderSelected(string name)
+        private void OnFollowerModeChange(string newFollowerMode)
         {
+            LogMsgWithVerboseDebug("OnFollowerModeChange called");
+
+            if (newFollowerMode == FollowerNetworkActivityModeEnum.Local)
+            {
+
+            }
+            else if (newFollowerMode == FollowerNetworkActivityModeEnum.Network)
+            {
+
+            }
+        }
+
+        private void OnSetMyselfAsLeaderToPropagateChanged()
+        {
+            LogMsgWithVerboseDebug("OnSetMyselfAsLeaderToPropagateChanged called");
+
+            string name = GameController.Player.GetComponent<Player>().PlayerName;
+            Settings.LeaderModeSettings.LeaderNameToPropagate.Value = name;
+        }
+
+        private void OnNearbyPlayerAsLeaderSelect(string name)
+        {
+            LogMsgWithVerboseDebug("OnNearbyPlayerAsLeaderSelect called");
+
             if (name != "") Settings.FollowerModeSettings.LeaderName.Value = name;
 
             Settings.FollowerModeSettings.NearbyPlayers.Value = "";
         }
 
-        private void LogMsgWithDebug(string message)
-        {
-            if (!Settings.Debug.Value) return;
-            LogMessage(message);
-        }
-
         private IEnumerator UpdateNearbyPlayersWork()
         {
+            LogMsgWithVerboseDebug("Starting UpdateNearbyPlayersWork function");
             while (true)
             {
                 List<string> playerNames = GameController.EntityListWrapper
@@ -87,6 +111,25 @@ namespace FollowerV2
 
                 yield return new WaitTime(1000);
             }
+        }
+
+        private void LogMsgWithDebug(string message)
+        {
+            if (!Settings.Debug.Value) return;
+            LogMessage(message);
+        }
+
+        private void LogMsgWithVerboseDebug(string message)
+        {
+            if (Settings.Debug.Value && Settings.VerboseDebug.Value)
+                LogMessage(message);
+        }
+
+        private long GetDeltaInMilliseconds(DateTime lastTime)
+        {
+            long currentMs = ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeMilliseconds();
+            long lastTimeMs = ((DateTimeOffset)lastTime).ToUnixTimeMilliseconds();
+            return currentMs - lastTimeMs;
         }
 
     }

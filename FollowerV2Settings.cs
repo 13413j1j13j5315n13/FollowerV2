@@ -23,6 +23,9 @@ namespace FollowerV2
         public EmptyNode EmptyDebug { get; set; } = new EmptyNode();
         [Menu("Debug", "", 2, 1000)]
         public ToggleNode Debug { get; set; } = new ToggleNode(false);
+        public ToggleNode VerboseDebug { get; set; } = new ToggleNode(false);
+        [Menu("Show Radius", "", 3, 1000)]
+        public ToggleNode DebugShowRadius { get; set; } = new ToggleNode(false);
 
         #endregion
 
@@ -52,6 +55,8 @@ namespace FollowerV2
 
         #region Leader mode related settings
 
+        public LeaderModeSetting LeaderModeSettings = new LeaderModeSetting();
+
         #endregion
 
         public void DrawSettings()
@@ -59,6 +64,13 @@ namespace FollowerV2
             ImGuiTreeNodeFlags collapsingHeaderFlags = ImGuiTreeNodeFlags.CollapsingHeader;
 
             Debug.Value = ImGuiExtension.Checkbox("Debug", Debug);
+            ImGui.Spacing();
+            if (Debug.Value)
+            {
+                VerboseDebug.Value = ImGuiExtension.Checkbox("Extra Verbose Debug", VerboseDebug);
+                ImGui.Spacing();
+            }
+            DebugShowRadius.Value = ImGuiExtension.Checkbox("Debug: show radius", DebugShowRadius);
             ImGui.Spacing();
             Profiles.Value = ImGuiExtension.ComboBox("Profiles", Profiles.Value, Profiles.Values);
             ImGui.Spacing();
@@ -96,7 +108,8 @@ namespace FollowerV2
                     {
                         ImGui.TextDisabled("This mode will make network requests and use ONLY values from the server");
                         ImGui.TextDisabled("All local values are disabled and will not be used");
-                        ImGui.TextDisabled("P.S. On your server you might want to use something like \"ngrok\"");
+                        ImGui.TextDisabled("P.S. On server you might want to use something such as \"ngrok\" or \"localtunnel\"");
+                        ImGui.TextDisabled("    if your server is outside of localhost");
                         ImGui.Spacing();
                         ImGui.Spacing();
 
@@ -114,8 +127,46 @@ namespace FollowerV2
 
             if (Profiles.Value == ProfilesEnum.Leader)
             {
+                FollowerModeSettings.FollowerModes.Value = ImGuiExtension.ComboBox("Follower modes", FollowerModeSettings.FollowerModes.Value, FollowerModeSettings.FollowerModes.Values);
+
                 if (ImGui.TreeNodeEx("Leader Mode Settings", collapsingHeaderFlags))
                 {
+                    if (FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Local)
+                    {
+                        ImGui.TextDisabled("Local mode for leader does not contain any settings");
+                    }
+                    else if (FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network)
+                    {
+                        ImGui.TextDisabled("This is the network mode for LEADER");
+                        ImGui.TextDisabled($"Server will run on port {LeaderModeSettings.ServerPort.Value}");
+                        ImGui.Spacing();
+                        ImGui.Spacing();
+                        LeaderModeSettings.LeaderNameToPropagate.Value = ImGuiExtension.InputText("Leader Name To Propagate", LeaderModeSettings.LeaderNameToPropagate, 50, ImGuiInputTextFlags.AlwaysInsertMode);
+                        ImGui.Spacing();
+
+                        if (ImGui.Button("Set myself as leader")) LeaderModeSettings.SetMyselfAsLeader.OnPressed();
+                        ImGui.Spacing();
+
+                        ImGui.Spacing();
+                        LeaderModeSettings.PropagateWorkingOfFollowers.Value = ImGuiExtension.Checkbox("Propagate working of followers", LeaderModeSettings.PropagateWorkingOfFollowers);
+                        ImGui.Spacing();
+
+                        if (ImGui.TreeNodeEx("Advanced leader mode settings", collapsingHeaderFlags))
+                        {
+                            ImGui.TextDisabled("Port the server will be listening on. Must be a number.");
+                            ImGui.TextDisabled("Any other value will result in a crash");
+                            ImGui.TextDisabled("Remember to restart the server if you have changed the port");
+                            LeaderModeSettings.ServerPort.Value = ImGuiExtension.InputText("Server Port", LeaderModeSettings.ServerPort, 5, ImGuiInputTextFlags.AlwaysInsertMode);
+                            ImGui.Spacing();
+                            ImGui.TextDisabled("Server management");
+                            ImGui.Spacing();
+                            ImGui.SameLine();
+                            if (ImGui.Button("Restart Server")) LeaderModeSettings.ServerRestart.OnPressed();
+                            ImGui.SameLine();
+                            if (ImGui.Button("Stop Server")) LeaderModeSettings.ServerStop.OnPressed();
+                            ImGui.TextDisabled("TEST");
+                        }
+                    }
 
                     ImGui.Spacing();
                     ImGui.Separator();
@@ -146,7 +197,9 @@ namespace FollowerV2
 
         public ListNode FollowerModes { get; set; } = new ListNode
         {
-            Values = new List<string> { FollowerNetworkActivityModeEnum.Local, FollowerNetworkActivityModeEnum.Network
+            Values = new List<string> {
+                FollowerNetworkActivityModeEnum.Local,
+                FollowerNetworkActivityModeEnum.Network
             },
             Value = FollowerNetworkActivityModeEnum.Local
         };
@@ -158,7 +211,12 @@ namespace FollowerV2
 
     public class LeaderModeSetting
     {
-
+        public TextNode LeaderNameToPropagate { get; set; } = new TextNode("");
+        public ButtonNode SetMyselfAsLeader { get; set; } = new ButtonNode();
+        public TextNode ServerPort { get; set; } = new TextNode("4412");
+        public ButtonNode ServerRestart { get; set; } = new ButtonNode();
+        public ButtonNode ServerStop { get; set; } = new ButtonNode();
+        public ToggleNode PropagateWorkingOfFollowers { get; set; } = new ToggleNode(false);
     }
 
     public class FollowerModeNetworkSetting
@@ -167,4 +225,5 @@ namespace FollowerV2
 
         public RangeNode<int> DelayBetweenRequests { get; set; } = new RangeNode<int>(1000, 300, 3000);
     }
+
 }

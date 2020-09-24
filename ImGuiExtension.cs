@@ -100,6 +100,13 @@ namespace FollowerV2
             return refValue;
         }
 
+        // Buttons
+        public static Action Button(string label, Action callback)
+        {
+            ImGui.Button(label);
+            return callback;
+        }
+
         // Checkboxes
         public static bool Checkbox(string labelString, bool boolValue)
         {
