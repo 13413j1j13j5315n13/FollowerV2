@@ -11,6 +11,7 @@ using ExileCore.Shared.Enums;
 using SharpDX;
 using System.Net;
 using System.IO;
+using Newtonsoft.Json;
 
 namespace FollowerV2
 {
@@ -48,6 +49,7 @@ namespace FollowerV2
 
             _delayHelper.AddToDelayManager(nameof(OnPropagateWorkingOfFollowersHotkeyPressed), OnPropagateWorkingOfFollowersHotkeyPressed, 1000);
             _delayHelper.AddToDelayManager(nameof(DebugHoverToLeader), DebugHoverToLeader, 50);
+            _delayHelper.AddToDelayManager(nameof(StartNetworkRequestingPressed), StartNetworkRequestingPressed, 1000);
 
             return true;
         }
@@ -69,13 +71,16 @@ namespace FollowerV2
                 DebugHelper.DrawEllipseToWorld(camera, Graphics, player.Pos, Settings.LeaderModeSettings.LeaderProximityRadiusToPropagate.Value, 25, 2, Color.Yellow);
 
             }
-
             // Debug related ends
 
             if (Settings.LeaderModeSettings.PropagateWorkingOfFollowersHotkey.PressedOnce())
             {
                 _delayHelper.CallFunction(nameof(OnPropagateWorkingOfFollowersHotkeyPressed));
+            }
 
+            if (Settings.FollowerModeSettings.StartNetworkRequestingHotkey.PressedOnce())
+            {
+                _delayHelper.CallFunction(nameof(StartNetworkRequestingPressed));
             }
         }
 
@@ -177,7 +182,7 @@ namespace FollowerV2
 
         private void OnStartNetworkRequestingValueChanged(object obj, bool value)
         {
-
+            LogMsgWithVerboseDebug("OnStartNetworkRequestingValueChanged called");
         }
 
         private IEnumerator MainNetworkRequestsWork()
@@ -281,7 +286,8 @@ namespace FollowerV2
                     StreamReader reader = new StreamReader(stream);
                     string reply = reader.ReadToEnd();
 
-                    // TODO: process the request
+                    NetworkActivityObject networkActivityObject = JsonConvert.DeserializeObject<NetworkActivityObject>(reply);
+                    ProcessNetworkActivityResponse(networkActivityObject);
                 }
                 else
                 {
@@ -297,6 +303,26 @@ namespace FollowerV2
             yield break;
         }
 
+        private void ProcessNetworkActivityResponse(NetworkActivityObject obj)
+        {
+            LogMsgWithVerboseDebug("ProcessNetworkActivityResponse called");
+
+            if (obj == null)
+            {
+                return;
+            }
+
+            Settings.FollowerModeSettings.LeaderName.Value = obj.LeaderName;
+            Settings.FollowerModeSettings.LeaderProximityRadius.Value = obj.LeaderProximityRadius;
+        }
+
+        private void StartNetworkRequestingPressed()
+        {
+            LogMsgWithVerboseDebug("StartNetworkRequestingPressed called");
+
+            Settings.FollowerModeSettings.StartNetworkRequesting.Value =
+                !Settings.FollowerModeSettings.StartNetworkRequesting.Value;
+        }
         private void DebugHoverToLeader()
         {
             HoverTo(GetLeaderEntity());

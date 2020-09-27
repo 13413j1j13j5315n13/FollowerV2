@@ -46,6 +46,7 @@ namespace FollowerV2
         };
 
         public RangeNode<int> RandomClickOffset { get; set; } = new RangeNode<int>(10, 5, 100);
+        public ButtonNode ResetToDefaultsButton { get; set; } = new ButtonNode();
 
         #endregion
 
@@ -60,6 +61,38 @@ namespace FollowerV2
         public LeaderModeSetting LeaderModeSettings = new LeaderModeSetting();
 
         #endregion
+
+        public FollowerV2Settings()
+        {
+            ResetToDefaultsButton.OnPressed += ResetAllSettingsToDefaults;
+        }
+
+        private void ResetAllSettingsToDefaults()
+        {
+            Debug.Value = false;
+            VerboseDebug.Value = false;
+            DebugShowRadius.Value = false;
+            DebugGenerateOnHoverEvents.Value = Keys.L;
+            Profiles.Value = ProfilesEnum.Disable;
+            RandomClickOffset.Value = 10;
+
+            FollowerModeSettings.LeaderName.Value = "";
+            FollowerModeSettings.FollowerUseCombat.Value = false;
+            FollowerModeSettings.FollowerModes.Value = FollowerNetworkActivityModeEnum.Local;
+            FollowerModeSettings.NearbyPlayers.Value = "";
+            FollowerModeSettings.LeaderProximityRadius.Value = 100;
+            FollowerModeSettings.StartNetworkRequesting.Value = false;
+            FollowerModeSettings.StartNetworkRequestingHotkey.Value = Keys.F3;
+            FollowerModeSettings.FollowerModeNetworkSettings.Url.Value = "";
+            FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests.Value = 1000;
+            FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs.Value = 3000;
+
+            LeaderModeSettings.LeaderNameToPropagate.Value = "";
+            LeaderModeSettings.ServerPort.Value = "4412";
+            LeaderModeSettings.PropagateWorkingOfFollowers.Value = false;
+            LeaderModeSettings.PropagateWorkingOfFollowersHotkey.Value = Keys.F4;
+            LeaderModeSettings.LeaderProximityRadiusToPropagate.Value = 100;
+        }
 
         public void DrawSettings()
         {
@@ -88,6 +121,17 @@ namespace FollowerV2
             ImGuiExtension.ToolTipWithText("(?)", "Will randomly offset X and Y coords by - or + of this value");
 
             ImGui.Separator();
+            ImGui.Spacing();
+            ImGui.Spacing();
+
+            ImGui.SameLine();
+            ImGui.TextDisabled("***** ");
+            ImGui.SameLine();
+            if (ImGui.Button("Reset settings to defaults")) ResetToDefaultsButton.OnPressed();
+            ImGui.SameLine();
+            ImGui.TextDisabled(" *****");
+
+            ImGui.Spacing();
             ImGui.Spacing();
 
             if (Profiles.Value == ProfilesEnum.Follower)
@@ -233,7 +277,6 @@ namespace FollowerV2
         public ListNode NearbyPlayers { get; set; } = new ListNode { Values = new List<string>(), Value = "" };
         public FollowerModeNetworkSetting FollowerModeNetworkSettings { get; set; } = new FollowerModeNetworkSetting();
         public RangeNode<int> LeaderProximityRadius { get; set; } = new RangeNode<int>(100, 10, 300);
-        public RangeNode<int> LeaderProximityRadiusToPropagate { get; set; } = new RangeNode<int>(100, 1, 300);
         public ToggleNode StartNetworkRequesting { get; set; } = new ToggleNode(false);
         public HotkeyNode StartNetworkRequestingHotkey { get; set; } = Keys.F3;
     }
