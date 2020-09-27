@@ -210,7 +210,9 @@ namespace FollowerV2
                         ImGui.Spacing();
 
                         if (ImGui.Button("Set myself as leader")) LeaderModeSettings.SetMyselfAsLeader.OnPressed();
+
                         ImGui.Spacing();
+                        LeaderModeSettings.StartServer.Value = ImGuiExtension.Checkbox("Start Server", LeaderModeSettings.StartServer);
 
                         ImGui.Spacing();
                         LeaderModeSettings.PropagateWorkingOfFollowers.Value = ImGuiExtension.Checkbox("Propagate working of followers", LeaderModeSettings.PropagateWorkingOfFollowers);
@@ -286,6 +288,7 @@ namespace FollowerV2
         public TextNode LeaderNameToPropagate { get; set; } = new TextNode("");
         public ButtonNode SetMyselfAsLeader { get; set; } = new ButtonNode();
         public TextNode ServerPort { get; set; } = new TextNode("4412");
+        public ToggleNode StartServer { get; set; } = new ToggleNode(false);
         public ButtonNode ServerRestart { get; set; } = new ButtonNode();
         public ButtonNode ServerStop { get; set; } = new ButtonNode();
         public ToggleNode PropagateWorkingOfFollowers { get; set; } = new ToggleNode(false);

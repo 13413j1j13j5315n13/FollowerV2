@@ -19,29 +19,25 @@ namespace FollowerV2
     {
         private Coroutine _nearbyPlayersUpdateCoroutine;
         private Coroutine _networkRequestsCoroutine;
+        private Coroutine _serverCoroutine;
         private DelayHelper _delayHelper;
 
         private NetworkRequestStatus _networkRequestStatus = NetworkRequestStatus.Finished;
+        private Server _server;
 
         public override bool Initialise()
         {
             _delayHelper = new DelayHelper();
+            _server = new Server(Settings);
 
-            Settings.Profiles.OnValueSelected += OnProfileChange;
-            Settings.FollowerModeSettings.FollowerModes.OnValueSelected += OnFollowerModeChange; // local or network
-            Settings.FollowerModeSettings.NearbyPlayers.OnValueSelected += OnNearbyPlayerAsLeaderSelect;
-            Settings.FollowerModeSettings.StartNetworkRequesting.OnValueChanged += OnStartNetworkRequestingValueChanged;
-            Settings.LeaderModeSettings.SetMyselfAsLeader.OnPressed += OnSetMyselfAsLeaderToPropagateChanged;
-            Settings.LeaderModeSettings.PropagateWorkingOfFollowersHotkey.OnValueChanged +=
-                OnPropagateWorkingOfFollowersHotkeyValueChanged;
-            Settings.FollowerModeSettings.StartNetworkRequestingHotkey.OnValueChanged +=
-                OnStartNetworkRequestingHotkeyValueChanged;
+            SetAllOnCallbacks();
 
             Input.RegisterKey(Settings.LeaderModeSettings.PropagateWorkingOfFollowersHotkey);
             Input.RegisterKey(Settings.FollowerModeSettings.StartNetworkRequestingHotkey);
 
             _nearbyPlayersUpdateCoroutine = new Coroutine(UpdateNearbyPlayersWork(), this, "Update nearby players");
             _networkRequestsCoroutine = new Coroutine(MainNetworkRequestsWork(), this, "Network requests coroutine", false);
+            _serverCoroutine = new Coroutine(MainServerWork(), this, "Server coroutine", false);
 
             // Fire all coroutines
             Core.ParallelRunner.Run(_nearbyPlayersUpdateCoroutine);
@@ -52,6 +48,21 @@ namespace FollowerV2
             _delayHelper.AddToDelayManager(nameof(StartNetworkRequestingPressed), StartNetworkRequestingPressed, 1000);
 
             return true;
+        }
+
+        private void SetAllOnCallbacks()
+        {
+            Settings.Profiles.OnValueSelected += OnProfileChange;
+
+            Settings.FollowerModeSettings.FollowerModes.OnValueSelected += OnFollowerModeChange; // local or network
+            Settings.FollowerModeSettings.NearbyPlayers.OnValueSelected += OnNearbyPlayerAsLeaderSelect;
+            Settings.FollowerModeSettings.StartNetworkRequesting.OnValueChanged += OnStartNetworkRequestingValueChanged;
+            Settings.FollowerModeSettings.StartNetworkRequestingHotkey.OnValueChanged +=
+                OnStartNetworkRequestingHotkeyValueChanged;
+
+            Settings.LeaderModeSettings.SetMyselfAsLeader.OnPressed += OnSetMyselfAsLeaderToPropagateChanged;
+            Settings.LeaderModeSettings.PropagateWorkingOfFollowersHotkey.OnValueChanged +=
+                OnPropagateWorkingOfFollowersHotkeyValueChanged;
         }
 
         public override void Render()
@@ -94,7 +105,6 @@ namespace FollowerV2
                     _delayHelper.CallFunction(nameof(DebugHoverToLeader));
                 }
             }
-
             // Debug related ends
 
             return null;
@@ -112,15 +122,17 @@ namespace FollowerV2
 
             if (profile == ProfilesEnum.Follower)
             {
-
+                _server.KillServer();
             }
             else if (profile == ProfilesEnum.Leader)
             {
-
+                Settings.FollowerModeSettings.StartNetworkRequesting.Value = false;
+                _server.StartServer();
             }
             else if (profile == ProfilesEnum.Disable)
             {
-
+                _server.KillServer();
+                Settings.FollowerModeSettings.StartNetworkRequesting.Value = false;
             }
             else
             {
@@ -134,7 +146,7 @@ namespace FollowerV2
 
             if (newFollowerMode == FollowerNetworkActivityModeEnum.Local)
             {
-
+                _server.KillServer();
             }
             else if (newFollowerMode == FollowerNetworkActivityModeEnum.Network)
             {
@@ -191,7 +203,7 @@ namespace FollowerV2
 
             while (true)
             {
-                if (!Settings.FollowerModeSettings.StartNetworkRequesting.Value)
+                if (!Settings.LeaderModeSettings.StartServer.Value || !Settings.FollowerModeSettings.StartNetworkRequesting.Value || Settings.Profiles.Value != ProfilesEnum.Follower)
                 {
                     yield return new WaitTime(100);
                     continue;
@@ -199,6 +211,23 @@ namespace FollowerV2
 
                 yield return DoFollowerNetworkActivityWork();
                 yield return new WaitTime(Settings.FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests.Value);
+            }
+        }
+
+        private IEnumerator MainServerWork()
+        {
+            LogMsgWithVerboseDebug("Starting MainServerWork function");
+
+            while (true)
+            {
+                if (Settings.Profiles.Value != ProfilesEnum.Leader)
+                {
+                    yield return new WaitTime(100);
+                    continue;
+                }
+                _server.Listen();
+
+                yield return new WaitTime(50);
             }
         }
 
