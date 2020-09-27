@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Windows.Forms;
 using ExileCore;
 using ExileCore.Shared.Interfaces;
 using ExileCore.Shared.Nodes;
@@ -26,6 +27,7 @@ namespace FollowerV2
         public ToggleNode VerboseDebug { get; set; } = new ToggleNode(false);
         [Menu("Show Radius", "", 3, 1000)]
         public ToggleNode DebugShowRadius { get; set; } = new ToggleNode(false);
+        public HotkeyNode DebugGenerateOnHoverEvents { get; set; } = Keys.L;
 
         #endregion
 
@@ -69,8 +71,15 @@ namespace FollowerV2
             {
                 VerboseDebug.Value = ImGuiExtension.Checkbox("Extra Verbose Debug", VerboseDebug);
                 ImGui.Spacing();
+
+                ImGui.TextDisabled("Hotkey to randomly generate On Hover events");
+                ImGui.TextDisabled("This will help to see where follower will click");
+                ImGui.TextDisabled("This takes \"Random click offset\" into account");
+                DebugGenerateOnHoverEvents.Value = ImGuiExtension.HotkeySelector("Generate OnHover", DebugGenerateOnHoverEvents);
+
+                ImGui.Spacing();
+                DebugShowRadius.Value = ImGuiExtension.Checkbox("Debug: show radius", DebugShowRadius);
             }
-            DebugShowRadius.Value = ImGuiExtension.Checkbox("Debug: show radius", DebugShowRadius);
             ImGui.Spacing();
             Profiles.Value = ImGuiExtension.ComboBox("Profiles", Profiles.Value, Profiles.Values);
             ImGui.Spacing();
@@ -101,8 +110,13 @@ namespace FollowerV2
                             FollowerModeSettings.NearbyPlayers.Value = ImGuiExtension.ComboBox("Use party member as leader", FollowerModeSettings.NearbyPlayers.Value, FollowerModeSettings.NearbyPlayers.Values);
                         }
 
-                        FollowerModeSettings.FollowerUseCombat.Value = ImGuiExtension.Checkbox("Use Combat", FollowerModeSettings.FollowerUseCombat);
-                        ImGuiExtension.ToolTipWithText("(?)", "This player will use combat routines");
+                        // TODO: Implement this later
+                        //FollowerModeSettings.FollowerUseCombat.Value = ImGuiExtension.Checkbox("Use Combat", FollowerModeSettings.FollowerUseCombat);
+                        //ImGuiExtension.ToolTipWithText("(?)", "This player will use combat routines");
+                        ImGui.Spacing();
+                        FollowerModeSettings.LeaderProximityRadius.Value = ImGuiExtension.IntSlider("Leader prox. radius", FollowerModeSettings.LeaderProximityRadius);
+                        ImGuiExtension.ToolTipWithText("(?)", "Set \"Debug: show radius\" on to see the radius");
+                        ImGuiExtension.ToolTipWithText("(?)", "Color: Red");
                     }
                     else if (FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network)
                     {
@@ -117,6 +131,13 @@ namespace FollowerV2
                         ImGuiExtension.ToolTipWithText("(?)", "Provide the URL this follower will connect");
 
                         FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests.Value = ImGuiExtension.IntSlider("Request delay", FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests);
+                        ImGui.Spacing();
+                        FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs.Value = ImGuiExtension.IntSlider("Request timeout ms", FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs);
+                        ImGui.Spacing();
+                        ImGui.Spacing();
+                        FollowerModeSettings.StartNetworkRequesting.Value = ImGuiExtension.Checkbox("Start network requesting", FollowerModeSettings.StartNetworkRequesting);
+                        FollowerModeSettings.StartNetworkRequestingHotkey.Value = ImGuiExtension.HotkeySelector("Hotkey to start network requesting", FollowerModeSettings.StartNetworkRequestingHotkey);
+                        ImGui.Spacing();
                     }
 
                     ImGui.Spacing();
@@ -127,10 +148,10 @@ namespace FollowerV2
 
             if (Profiles.Value == ProfilesEnum.Leader)
             {
-                FollowerModeSettings.FollowerModes.Value = ImGuiExtension.ComboBox("Follower modes", FollowerModeSettings.FollowerModes.Value, FollowerModeSettings.FollowerModes.Values);
-
                 if (ImGui.TreeNodeEx("Leader Mode Settings", collapsingHeaderFlags))
                 {
+                    FollowerModeSettings.FollowerModes.Value = ImGuiExtension.ComboBox("Follower modes", FollowerModeSettings.FollowerModes.Value, FollowerModeSettings.FollowerModes.Values);
+
                     if (FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Local)
                     {
                         ImGui.TextDisabled("Local mode for leader does not contain any settings");
@@ -149,9 +170,14 @@ namespace FollowerV2
 
                         ImGui.Spacing();
                         LeaderModeSettings.PropagateWorkingOfFollowers.Value = ImGuiExtension.Checkbox("Propagate working of followers", LeaderModeSettings.PropagateWorkingOfFollowers);
+                        LeaderModeSettings.PropagateWorkingOfFollowersHotkey.Value = ImGuiExtension.HotkeySelector("Hotkey to propagate working of follower", LeaderModeSettings.PropagateWorkingOfFollowersHotkey);
                         ImGui.Spacing();
+                        ImGui.Spacing();
+                        FollowerModeSettings.LeaderProximityRadius.Value = ImGuiExtension.IntSlider("Leader proximity radius", FollowerModeSettings.LeaderProximityRadius);
+                        ImGuiExtension.ToolTipWithText("(?)", "Set \"Debug: show radius\" on to see the radius");
+                        ImGuiExtension.ToolTipWithText("(?)", "Color: Yellow");
 
-                        if (ImGui.TreeNodeEx("Advanced leader mode settings", collapsingHeaderFlags))
+                        if (ImGui.TreeNodeEx("Advanced leader mode settings"))
                         {
                             ImGui.TextDisabled("Port the server will be listening on. Must be a number.");
                             ImGui.TextDisabled("Any other value will result in a crash");
@@ -164,7 +190,7 @@ namespace FollowerV2
                             if (ImGui.Button("Restart Server")) LeaderModeSettings.ServerRestart.OnPressed();
                             ImGui.SameLine();
                             if (ImGui.Button("Stop Server")) LeaderModeSettings.ServerStop.OnPressed();
-                            ImGui.TextDisabled("TEST");
+                            ImGui.Spacing();
                         }
                     }
 
@@ -205,8 +231,11 @@ namespace FollowerV2
         };
 
         public ListNode NearbyPlayers { get; set; } = new ListNode { Values = new List<string>(), Value = "" };
-
         public FollowerModeNetworkSetting FollowerModeNetworkSettings { get; set; } = new FollowerModeNetworkSetting();
+        public RangeNode<int> LeaderProximityRadius { get; set; } = new RangeNode<int>(100, 10, 300);
+        public RangeNode<int> LeaderProximityRadiusToPropagate { get; set; } = new RangeNode<int>(100, 1, 300);
+        public ToggleNode StartNetworkRequesting { get; set; } = new ToggleNode(false);
+        public HotkeyNode StartNetworkRequestingHotkey { get; set; } = Keys.F3;
     }
 
     public class LeaderModeSetting
@@ -217,6 +246,8 @@ namespace FollowerV2
         public ButtonNode ServerRestart { get; set; } = new ButtonNode();
         public ButtonNode ServerStop { get; set; } = new ButtonNode();
         public ToggleNode PropagateWorkingOfFollowers { get; set; } = new ToggleNode(false);
+        public HotkeyNode PropagateWorkingOfFollowersHotkey { get; set; } = Keys.F4;
+        public RangeNode<int> LeaderProximityRadiusToPropagate { get; set; } = new RangeNode<int>(100, 1, 300);
     }
 
     public class FollowerModeNetworkSetting
@@ -224,6 +255,7 @@ namespace FollowerV2
         public TextNode Url { get; set; } = new TextNode("");
 
         public RangeNode<int> DelayBetweenRequests { get; set; } = new RangeNode<int>(1000, 300, 3000);
+        public RangeNode<int> RequestTimeoutMs { get; set; } = new RangeNode<int>(3000, 1000, 10000);
     }
 
 }

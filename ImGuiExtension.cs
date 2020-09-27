@@ -195,14 +195,16 @@ namespace FollowerV2
 
         public static Keys HotkeySelector(string buttonName, Keys currentKey)
         {
+            string msg = $"{buttonName } - {currentKey}";
+
             var open = true;
-            if (ImGui.Button(buttonName))
+            if (ImGui.Button(msg))
             {
-                ImGui.OpenPopup(buttonName);
+                ImGui.OpenPopup(msg);
                 open = true;
             }
 
-            if (ImGui.BeginPopupModal(buttonName, ref open, (ImGuiWindowFlags)35))
+            if (ImGui.BeginPopupModal(msg, ref open, (ImGuiWindowFlags)35))
             {
                 if (Input.GetKeyState(Keys.Escape))
                 {
