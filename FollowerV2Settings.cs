@@ -88,6 +88,7 @@ namespace FollowerV2
             FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs.Value = 3000;
 
             LeaderModeSettings.LeaderNameToPropagate.Value = "";
+            LeaderModeSettings.ServerHostname.Value = "localhost";
             LeaderModeSettings.ServerPort.Value = "4412";
             LeaderModeSettings.PropagateWorkingOfFollowers.Value = false;
             LeaderModeSettings.PropagateWorkingOfFollowersHotkey.Value = Keys.F4;
@@ -203,7 +204,8 @@ namespace FollowerV2
                     else if (FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network)
                     {
                         ImGui.TextDisabled("This is the network mode for LEADER");
-                        ImGui.TextDisabled($"Server will run on port {LeaderModeSettings.ServerPort.Value}");
+                        ImGui.TextDisabled($"Server will run on port \"{LeaderModeSettings.ServerPort.Value}\"");
+                        ImGui.TextDisabled($"   hostname: {LeaderModeSettings.ServerHostname.Value}");
                         ImGui.Spacing();
                         ImGui.Spacing();
                         LeaderModeSettings.LeaderNameToPropagate.Value = ImGuiExtension.InputText("Leader Name To Propagate", LeaderModeSettings.LeaderNameToPropagate, 50, ImGuiInputTextFlags.AlwaysInsertMode);
@@ -212,7 +214,7 @@ namespace FollowerV2
                         if (ImGui.Button("Set myself as leader")) LeaderModeSettings.SetMyselfAsLeader.OnPressed();
 
                         ImGui.Spacing();
-                        LeaderModeSettings.StartServer.Value = ImGuiExtension.Checkbox("Start Server", LeaderModeSettings.StartServer);
+                        LeaderModeSettings.StartServer.Value = ImGuiExtension.Checkbox("Start Server Listening", LeaderModeSettings.StartServer);
 
                         ImGui.Spacing();
                         LeaderModeSettings.PropagateWorkingOfFollowers.Value = ImGuiExtension.Checkbox("Propagate working of followers", LeaderModeSettings.PropagateWorkingOfFollowers);
@@ -225,9 +227,8 @@ namespace FollowerV2
 
                         if (ImGui.TreeNodeEx("Advanced leader mode settings"))
                         {
-                            ImGui.TextDisabled("Port the server will be listening on. Must be a number.");
-                            ImGui.TextDisabled("Any other value will result in a crash");
-                            ImGui.TextDisabled("Remember to restart the server if you have changed the port");
+                            ImGui.TextDisabled("Remember to restart the server if you have changed the port or the hostname");
+                            LeaderModeSettings.ServerHostname.Value = ImGuiExtension.InputText("Server Hostname", LeaderModeSettings.ServerHostname, 30, ImGuiInputTextFlags.AlwaysInsertMode);
                             LeaderModeSettings.ServerPort.Value = ImGuiExtension.InputText("Server Port", LeaderModeSettings.ServerPort, 5, ImGuiInputTextFlags.AlwaysInsertMode);
                             ImGui.Spacing();
                             ImGui.TextDisabled("Server management");
@@ -287,6 +288,7 @@ namespace FollowerV2
     {
         public TextNode LeaderNameToPropagate { get; set; } = new TextNode("");
         public ButtonNode SetMyselfAsLeader { get; set; } = new ButtonNode();
+        public TextNode ServerHostname { get; set; } = new TextNode("localhost");
         public TextNode ServerPort { get; set; } = new TextNode("4412");
         public ToggleNode StartServer { get; set; } = new ToggleNode(false);
         public ButtonNode ServerRestart { get; set; } = new ButtonNode();

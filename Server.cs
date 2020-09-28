@@ -13,11 +13,14 @@ namespace FollowerV2
     {
         private readonly FollowerV2Settings _followerSettings;
         private bool _serverIsListening = false;
-        readonly HttpListener _httpListener = new HttpListener();
+        private HttpListener _httpListener = new HttpListener();
 
         public Server(FollowerV2Settings followerSettings)
         {
             _followerSettings = followerSettings;
+
+            _httpListener.TimeoutManager.IdleConnection = TimeSpan.FromSeconds(5);
+            _httpListener.TimeoutManager.EntityBody = TimeSpan.FromSeconds(5);
 
             AddCurrentPrefix();
         }
@@ -44,24 +47,38 @@ namespace FollowerV2
 
             try
             {
-                IAsyncResult result = _httpListener.BeginGetContext(new AsyncCallback((IAsyncResult res) =>
-                {
-                    HttpListener list = (HttpListener)res.AsyncState;
-                    HttpListenerContext context = list.EndGetContext(res);
+                // ASYNC WORKING SERVER
+                //IAsyncResult result = _httpListener.BeginGetContext(new AsyncCallback((IAsyncResult res) =>
+                //{
+                //    HttpListener list = (HttpListener)res.AsyncState;
+                //    HttpListenerContext context = list.EndGetContext(res);
 
-                    HttpListenerRequest req = context.Request;
-                    HttpListenerResponse response = context.Response;
+                //    HttpListenerRequest req = context.Request;
+                //    HttpListenerResponse response = context.Response;
 
-                    string responseString = JsonConvert.SerializeObject(CreateNetworkActivityObject());
+                //    string responseString = JsonConvert.SerializeObject(CreateNetworkActivityObject());
 
-                    byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
-                    response.ContentLength64 = buffer.Length;
+                //    byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
+                //    response.ContentLength64 = buffer.Length;
 
-                    System.IO.Stream output = response.OutputStream;
-                    output.Write(buffer, 0, buffer.Length);
-                    output.Close();
+                //    System.IO.Stream output = response.OutputStream;
+                //    output.Write(buffer, 0, buffer.Length);
+                //    output.Close();
 
-                }), _httpListener);
+                //}), _httpListener);
+                // ASYNC WORKING SERVER ENDS
+
+                // SYNC WORKING SERVER
+                HttpListenerContext context = _httpListener.GetContext();
+                HttpListenerRequest request = context.Request;
+                HttpListenerResponse response = context.Response;
+                string responseString = "<HTML><BODY> Hello world!</BODY></HTML>";
+                byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
+                response.ContentLength64 = buffer.Length;
+                System.IO.Stream output = response.OutputStream;
+                output.Write(buffer, 0, buffer.Length);
+                output.Close();
+                // SYNC WORKING SERVER ENDS
             }
             finally
             {
@@ -71,20 +88,44 @@ namespace FollowerV2
 
         public void StartServer()
         {
-            if (_httpListener.IsListening) return;
+            LogMsg("Server.StartServer() is called");
+
+            if (_httpListener.IsListening)
+            {
+                LogMsg("Server is already listening");
+                return;
+            }
+
+            _httpListener.Start();
+        }
+
+        public void RestartServer()
+        {
+            LogMsg("Server.RestartServer() is called");
+
+            if (_httpListener.IsListening) KillServer();
+
+            _httpListener = new HttpListener();
 
             if (!_httpListener.Prefixes.Any())
             {
                 AddCurrentPrefix();
             }
 
-            _httpListener.Start();
+            LogMsg("Server has been recreated");
+
+            _httpListener.TimeoutManager.IdleConnection = TimeSpan.FromSeconds(5);
+            _httpListener.TimeoutManager.EntityBody = TimeSpan.FromSeconds(5);
+
+            _serverIsListening = false;
         }
 
         public void KillServer()
         {
-            _httpListener.Close();
-            _httpListener.Prefixes.Clear();
+            LogMsg("Server.KillServer() is called, killing the server");
+
+            //if (_httpListener.Prefixes.Any()) _httpListener.Prefixes.Clear();
+            _httpListener.Abort();
         }
 
         private void AddCurrentPrefix()
@@ -95,7 +136,7 @@ namespace FollowerV2
 
         private string GetServerUrl()
         {
-            return $"http://localhost:{_followerSettings.LeaderModeSettings.ServerPort.Value}/";
+            return $"http://{_followerSettings.LeaderModeSettings.ServerHostname.Value}:{_followerSettings.LeaderModeSettings.ServerPort.Value}/";
         }
 
         private NetworkActivityObject CreateNetworkActivityObject()

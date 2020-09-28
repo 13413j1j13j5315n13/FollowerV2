@@ -29,6 +29,7 @@ namespace FollowerV2
         {
             _delayHelper = new DelayHelper();
             _server = new Server(Settings);
+            _server.RestartServer();
 
             SetAllOnCallbacks();
 
@@ -42,6 +43,7 @@ namespace FollowerV2
             // Fire all coroutines
             Core.ParallelRunner.Run(_nearbyPlayersUpdateCoroutine);
             Core.ParallelRunner.Run(_networkRequestsCoroutine);
+            Core.ParallelRunner.Run(_serverCoroutine);
 
             _delayHelper.AddToDelayManager(nameof(OnPropagateWorkingOfFollowersHotkeyPressed), OnPropagateWorkingOfFollowersHotkeyPressed, 1000);
             _delayHelper.AddToDelayManager(nameof(DebugHoverToLeader), DebugHoverToLeader, 50);
@@ -61,6 +63,9 @@ namespace FollowerV2
                 OnStartNetworkRequestingHotkeyValueChanged;
 
             Settings.LeaderModeSettings.SetMyselfAsLeader.OnPressed += OnSetMyselfAsLeaderToPropagateChanged;
+            Settings.LeaderModeSettings.ServerStop.OnPressed += _server.KillServer;
+            Settings.LeaderModeSettings.ServerRestart.OnPressed += _server.RestartServer;
+            Settings.LeaderModeSettings.StartServer.OnValueChanged += OnStartServerValueChanged;
             Settings.LeaderModeSettings.PropagateWorkingOfFollowersHotkey.OnValueChanged +=
                 OnPropagateWorkingOfFollowersHotkeyValueChanged;
         }
@@ -123,15 +128,17 @@ namespace FollowerV2
             if (profile == ProfilesEnum.Follower)
             {
                 _server.KillServer();
+                Settings.LeaderModeSettings.StartServer.Value = false;
             }
             else if (profile == ProfilesEnum.Leader)
             {
                 Settings.FollowerModeSettings.StartNetworkRequesting.Value = false;
-                _server.StartServer();
+                _server.RestartServer();
             }
             else if (profile == ProfilesEnum.Disable)
             {
                 _server.KillServer();
+                Settings.LeaderModeSettings.StartServer.Value = false;
                 Settings.FollowerModeSettings.StartNetworkRequesting.Value = false;
             }
             else
@@ -147,10 +154,12 @@ namespace FollowerV2
             if (newFollowerMode == FollowerNetworkActivityModeEnum.Local)
             {
                 _server.KillServer();
+                Settings.LeaderModeSettings.StartServer.Value = false;
+                Settings.FollowerModeSettings.StartNetworkRequesting.Value = false;
             }
             else if (newFollowerMode == FollowerNetworkActivityModeEnum.Network)
             {
-
+                _server.RestartServer();
             }
         }
 
@@ -160,6 +169,14 @@ namespace FollowerV2
 
             string name = GameController.Player.GetComponent<Player>().PlayerName;
             Settings.LeaderModeSettings.LeaderNameToPropagate.Value = name;
+        }
+
+        private void OnStartServerValueChanged(object obj, bool value)
+        {
+            LogMsgWithVerboseDebug("OnStartServerValueChanged called");
+
+            if (value) _server.RestartServer();
+            else _server.KillServer();
         }
 
         private void OnPropagateWorkingOfFollowersHotkeyValueChanged()
@@ -203,7 +220,7 @@ namespace FollowerV2
 
             while (true)
             {
-                if (!Settings.LeaderModeSettings.StartServer.Value || !Settings.FollowerModeSettings.StartNetworkRequesting.Value || Settings.Profiles.Value != ProfilesEnum.Follower)
+                if (Settings.Profiles.Value != ProfilesEnum.Follower || !Settings.LeaderModeSettings.StartServer.Value || !Settings.FollowerModeSettings.StartNetworkRequesting.Value)
                 {
                     yield return new WaitTime(100);
                     continue;
@@ -220,11 +237,15 @@ namespace FollowerV2
 
             while (true)
             {
-                if (Settings.Profiles.Value != ProfilesEnum.Leader)
+                if (Settings.Profiles.Value != ProfilesEnum.Leader || !Settings.LeaderModeSettings.StartServer.Value)
                 {
                     yield return new WaitTime(100);
                     continue;
                 }
+
+                LogMsgWithVerboseDebug("MainServerWork: Starting the server and listening");
+
+                _server.StartServer();
                 _server.Listen();
 
                 yield return new WaitTime(50);
