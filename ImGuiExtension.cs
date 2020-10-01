@@ -193,6 +193,12 @@ namespace FollowerV2
             return Encoding.Default.GetString(buff).TrimEnd('\0');
         }
 
+        public static string InputText(string label, string currentValue)
+        {
+            ImGui.InputText(label, ref currentValue, 200);
+            return currentValue;
+        }
+
         public static Keys HotkeySelector(string buttonName, Keys currentKey)
         {
             string msg = $"{buttonName } - {currentKey}";

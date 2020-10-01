@@ -117,6 +117,8 @@ namespace FollowerV2
             _httpListener.TimeoutManager.IdleConnection = TimeSpan.FromSeconds(5);
             _httpListener.TimeoutManager.EntityBody = TimeSpan.FromSeconds(5);
 
+            StartServer();
+
             _serverIsListening = false;
         }
 

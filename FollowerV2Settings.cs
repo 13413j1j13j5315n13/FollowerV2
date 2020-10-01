@@ -147,7 +147,7 @@ namespace FollowerV2
                         ImGui.Spacing();
                         ImGui.Spacing();
 
-                        FollowerModeSettings.LeaderName.Value = ImGuiExtension.InputText("Leader name", FollowerModeSettings.LeaderName, 100, ImGuiInputTextFlags.AlwaysInsertMode);
+                        FollowerModeSettings.LeaderName.Value = ImGuiExtension.InputText("Leader name", FollowerModeSettings.LeaderName);
                         ImGuiExtension.ToolTipWithText("(?)", "Provide character's name this player will follow");
 
                         if (FollowerModeSettings.NearbyPlayers.Values.Any())
@@ -172,7 +172,7 @@ namespace FollowerV2
                         ImGui.Spacing();
                         ImGui.Spacing();
 
-                        FollowerModeSettings.FollowerModeNetworkSettings.Url.Value = ImGuiExtension.InputText("Server URL", FollowerModeSettings.FollowerModeNetworkSettings.Url, 100, ImGuiInputTextFlags.AlwaysInsertMode);
+                        FollowerModeSettings.FollowerModeNetworkSettings.Url.Value = ImGuiExtension.InputText("Server URL", FollowerModeSettings.FollowerModeNetworkSettings.Url);
                         ImGuiExtension.ToolTipWithText("(?)", "Provide the URL this follower will connect");
 
                         FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests.Value = ImGuiExtension.IntSlider("Request delay", FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests);
@@ -208,7 +208,7 @@ namespace FollowerV2
                         ImGui.TextDisabled($"   hostname: {LeaderModeSettings.ServerHostname.Value}");
                         ImGui.Spacing();
                         ImGui.Spacing();
-                        LeaderModeSettings.LeaderNameToPropagate.Value = ImGuiExtension.InputText("Leader Name To Propagate", LeaderModeSettings.LeaderNameToPropagate, 50, ImGuiInputTextFlags.AlwaysInsertMode);
+                        LeaderModeSettings.LeaderNameToPropagate.Value = ImGuiExtension.InputText("Leader Name To Propagate", LeaderModeSettings.LeaderNameToPropagate);
                         ImGui.Spacing();
 
                         if (ImGui.Button("Set myself as leader")) LeaderModeSettings.SetMyselfAsLeader.OnPressed();
@@ -228,8 +228,12 @@ namespace FollowerV2
                         if (ImGui.TreeNodeEx("Advanced leader mode settings"))
                         {
                             ImGui.TextDisabled("Remember to restart the server if you have changed the port or the hostname");
-                            LeaderModeSettings.ServerHostname.Value = ImGuiExtension.InputText("Server Hostname", LeaderModeSettings.ServerHostname, 30, ImGuiInputTextFlags.AlwaysInsertMode);
-                            LeaderModeSettings.ServerPort.Value = ImGuiExtension.InputText("Server Port", LeaderModeSettings.ServerPort, 5, ImGuiInputTextFlags.AlwaysInsertMode);
+                            ImGui.TextDisabled("    run \"netsh http add urlacl url=http://HOSTNAME:PORT/\" user=YOUR_USER");
+                            ImGui.TextDisabled("    example \"netsh http add urlacl url=http://+:4412/\" user=YOUR_USER");
+                            ImGui.TextDisabled("        if you have changed your hostname");
+                            ImGui.TextDisabled("    allow the inbound connection on the port in firewall as well");
+                            LeaderModeSettings.ServerHostname.Value = ImGuiExtension.InputText("Server Hostname", LeaderModeSettings.ServerHostname);
+                            LeaderModeSettings.ServerPort.Value = ImGuiExtension.InputText("Server Port", LeaderModeSettings.ServerPort);
                             ImGui.Spacing();
                             ImGui.TextDisabled("Server management");
                             ImGui.Spacing();
