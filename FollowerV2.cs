@@ -11,7 +11,12 @@ using ExileCore.Shared.Enums;
 using SharpDX;
 using System.Net;
 using System.IO;
+using ExileCore.PoEMemory;
+using ExileCore.Shared.Helpers;
+using NumericsVector2 = System.Numerics.Vector2;
+using NumericsVector4 = System.Numerics.Vector4;
 using Newtonsoft.Json;
+using ImGuiNET;
 
 namespace FollowerV2
 {
@@ -20,10 +25,12 @@ namespace FollowerV2
         private Coroutine _nearbyPlayersUpdateCoroutine;
         private Coroutine _networkRequestsCoroutine;
         private Coroutine _serverCoroutine;
-        private DelayHelper _delayHelper = new DelayHelper();
+        private readonly DelayHelper _delayHelper = new DelayHelper();
 
         private NetworkRequestStatus _networkRequestStatus = NetworkRequestStatus.Finished;
         private Server _server;
+
+        //private readonly TestClass _testClass = new TestClass();
 
         public override bool Initialise()
         {
@@ -36,18 +43,21 @@ namespace FollowerV2
             Core.ParallelRunner.Run(_networkRequestsCoroutine);
             Core.ParallelRunner.Run(_serverCoroutine);
 
+            GameController.LeftPanel.WantUse(() => true);
+
             return true;
         }
 
         private void SetAllOnCallbacks()
         {
             Settings.Profiles.OnValueSelected += OnProfileChange;
+            //Settings.NearbyPlayers.OnValueSelected += OnNearbyPlayerAsLeaderSelect;
 
             Settings.FollowerModeSettings.FollowerModes.OnValueSelected += OnFollowerModeChange; // local or network
-            Settings.FollowerModeSettings.NearbyPlayers.OnValueSelected += OnNearbyPlayerAsLeaderSelect;
             Settings.FollowerModeSettings.StartNetworkRequesting.OnValueChanged += OnStartNetworkRequestingValueChanged;
             Settings.FollowerModeSettings.StartNetworkRequestingHotkey.OnValueChanged +=
                 OnStartNetworkRequestingHotkeyValueChanged;
+            Settings.FollowerModeSettings.UseNearbyPlayerAsLeaderButton.OnPressed += OnNearbyPlayerAsLeaderSelect;
 
             Settings.LeaderModeSettings.SetMyselfAsLeader.OnPressed += OnSetMyselfAsLeaderToPropagateChanged;
             Settings.LeaderModeSettings.ServerStop.OnPressed += (() => _server.KillServer());
@@ -59,9 +69,6 @@ namespace FollowerV2
 
         public override void OnLoad()
         {
-            _server = new Server(Settings);
-            _server.RestartServer();
-
             Input.RegisterKey(Settings.LeaderModeSettings.PropagateWorkingOfFollowersHotkey);
             Input.RegisterKey(Settings.FollowerModeSettings.StartNetworkRequestingHotkey);
 
@@ -70,10 +77,15 @@ namespace FollowerV2
             _delayHelper.AddToDelayManager(nameof(StartNetworkRequestingPressed), StartNetworkRequestingPressed, 1000);
 
             SetAllOnCallbacks();
+
+            _server = new Server(Settings);
+            _server.RestartServer();
         }
 
         public override void Render()
         {
+            if (!Settings.Enable.Value || !GameController.InGame) return;
+
             // Debug related
             if (Settings.DebugShowRadius.Value)
             {
@@ -100,6 +112,22 @@ namespace FollowerV2
             {
                 _delayHelper.CallFunction(nameof(StartNetworkRequestingPressed));
             }
+
+            //_testClass.Render();
+            RenderAdditionalImgui();
+
+
+            //// Just draw some test things
+            //Vector2 leftPanelStartDrawPoint = GameController.LeftPanel.StartDrawPoint;
+            //NumericsVector2 firstLineLeft = Graphics.DrawText("leftPanelStartDrawPoint", leftPanelStartDrawPoint, Color.Red, 20, FontAlign.Right);
+
+            //Element stashElement = GameController.IngameState.IngameUi.StashElement;
+            //Vector2 aaa = new Vector2(stashElement.GetClientRectCache.Width, stashElement.GetClientRectCache.Y + 20);
+
+            //Element uiRoot = GameController.IngameState.UIRoot;
+            //RectangleF rect = uiRoot.GetClientRect();
+            //Vector2 a = new Vector2(uiRoot.Width / 2f, 50);
+            //NumericsVector2 uiRootVector2 = Graphics.DrawText("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", aaa, Color.Yellow, 20, FontAlign.Top);
         }
 
         public override Job Tick()
@@ -202,13 +230,13 @@ namespace FollowerV2
                 !Settings.LeaderModeSettings.PropagateWorkingOfFollowers.Value;
         }
 
-        private void OnNearbyPlayerAsLeaderSelect(string name)
+        private void OnNearbyPlayerAsLeaderSelect()
         {
             LogMsgWithVerboseDebug("OnNearbyPlayerAsLeaderSelect called");
 
-            if (name != "") Settings.FollowerModeSettings.LeaderName.Value = name;
+            if (!String.IsNullOrEmpty(Settings.NearbyPlayers.Value)) Settings.FollowerModeSettings.LeaderName.Value = Settings.NearbyPlayers.Value;
 
-            Settings.FollowerModeSettings.NearbyPlayers.Value = "";
+            Settings.NearbyPlayers.Value = "";
         }
 
         private void OnStartNetworkRequestingValueChanged(object obj, bool value)
@@ -271,7 +299,7 @@ namespace FollowerV2
                     .Select(e => e.GetComponent<Player>().PlayerName)
                     .ToList();
 
-                Settings.FollowerModeSettings.NearbyPlayers.Values = playerNames;
+                Settings.NearbyPlayers.Values = playerNames;
 
                 yield return new WaitTime(1000);
             }
@@ -396,6 +424,69 @@ namespace FollowerV2
         {
             Finished,
             Working,
+        }
+
+        private void RenderAdditionalImgui()
+        {
+            DateTime emptyDateTime = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            var newWindowFlags = ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoBackground |
+                                 ImGuiWindowFlags.NoScrollbar;
+            string resizeButtonLabel = "Allowing resize";
+            string lockButtonLabel = "Unlocked";
+
+            if (Settings.FollowerCommandsImguiSettings.LockPanel.Value)
+            {
+                newWindowFlags |= ImGuiWindowFlags.NoMove;
+                lockButtonLabel = "Lock";
+            }
+
+            if (Settings.FollowerCommandsImguiSettings.NoResize.Value)
+            {
+                newWindowFlags |= ImGuiWindowFlags.NoResize;
+                resizeButtonLabel = "Restricting resizing";
+            }
+
+            ImGui.SetNextWindowBgAlpha(0.35f);
+            ImGui.Begin("FollowerV2", newWindowFlags);
+
+            ImGui.TextUnformatted("This window commands");
+            ImGui.SameLine();
+            if (ImGui.Button(lockButtonLabel))
+                Settings.FollowerCommandsImguiSettings.LockPanel.Value =
+                    !Settings.FollowerCommandsImguiSettings.LockPanel.Value;
+            ImGui.SameLine();
+            if (ImGui.Button(resizeButtonLabel))
+                Settings.FollowerCommandsImguiSettings.NoResize.Value = 
+                    !Settings.FollowerCommandsImguiSettings.NoResize.Value;
+
+            ImGui.Spacing();
+
+            foreach (var follower in Settings.LeaderModeSettings.FollowerCommandSettings.FollowerCommandsDataSet)
+            {
+                NumericsVector4 aaa = NumericsVector4.One;
+
+                ImGui.SameLine();
+                ImGui.TextUnformatted($"{follower.FollowerName}:  ");
+                ImGui.SameLine();
+
+                if (follower.LastTimeWaypointUsedDateTime != emptyDateTime)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Button, Color.Red.ToImgui());
+                }
+                if (ImGui.Button("Waypoint")) Settings.LeaderModeSettings.FollowerCommandSettings.UseWaypoint(follower.FollowerName);
+                ImGui.PopStyleColor();
+
+                if (follower.LastTimeEntranceUsedDateTime != emptyDateTime)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Button, Color.Red.ToImgui());
+                }
+                ImGui.SameLine();
+                if (ImGui.Button("Entrance")) Settings.LeaderModeSettings.FollowerCommandSettings.UseEntrance(follower.FollowerName);
+            }
+
+            ImGui.Spacing();
+            ImGui.End();
         }
     }
 }

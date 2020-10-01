@@ -29,6 +29,8 @@ namespace FollowerV2
         public ToggleNode DebugShowRadius { get; set; } = new ToggleNode(false);
         public HotkeyNode DebugGenerateOnHoverEvents { get; set; } = Keys.L;
 
+        public FollowerCommandsImguiSetting FollowerCommandsImguiSettings = new FollowerCommandsImguiSetting();
+
         #endregion
 
         #region Main
@@ -48,6 +50,8 @@ namespace FollowerV2
         public RangeNode<int> RandomClickOffset { get; set; } = new RangeNode<int>(10, 5, 100);
         public ButtonNode ResetToDefaultsButton { get; set; } = new ButtonNode();
 
+        public ListNode NearbyPlayers { get; set; } = new ListNode { Values = new List<string>(), Value = "" };
+
         #endregion
 
         #region Follower mode related settings
@@ -65,6 +69,18 @@ namespace FollowerV2
         public FollowerV2Settings()
         {
             ResetToDefaultsButton.OnPressed += ResetAllSettingsToDefaults;
+
+            LeaderModeSettings.NewFollowerCommandClassSetting.UseNearbyPlayerNameButton.OnPressed += (() =>
+                {
+                    LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName.Value = NearbyPlayers.Value;
+                    NearbyPlayers.Value = "";
+                });
+            LeaderModeSettings.NewFollowerCommandClassSetting.AddNewFollowerButton.OnPressed += (() =>
+            {
+                string name = LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName.Value;
+                LeaderModeSettings.FollowerCommandSettings.AddNewFollower(name);
+                LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName.Value = "";
+            });
         }
 
         private void ResetAllSettingsToDefaults()
@@ -75,11 +91,11 @@ namespace FollowerV2
             DebugGenerateOnHoverEvents.Value = Keys.L;
             Profiles.Value = ProfilesEnum.Disable;
             RandomClickOffset.Value = 10;
+            NearbyPlayers.Value = "";
 
             FollowerModeSettings.LeaderName.Value = "";
             FollowerModeSettings.FollowerUseCombat.Value = false;
             FollowerModeSettings.FollowerModes.Value = FollowerNetworkActivityModeEnum.Local;
-            FollowerModeSettings.NearbyPlayers.Value = "";
             FollowerModeSettings.LeaderProximityRadius.Value = 100;
             FollowerModeSettings.StartNetworkRequesting.Value = false;
             FollowerModeSettings.StartNetworkRequestingHotkey.Value = Keys.F3;
@@ -150,9 +166,13 @@ namespace FollowerV2
                         FollowerModeSettings.LeaderName.Value = ImGuiExtension.InputText("Leader name", FollowerModeSettings.LeaderName);
                         ImGuiExtension.ToolTipWithText("(?)", "Provide character's name this player will follow");
 
-                        if (FollowerModeSettings.NearbyPlayers.Values.Any())
+                        if (NearbyPlayers.Values.Any())
                         {
-                            FollowerModeSettings.NearbyPlayers.Value = ImGuiExtension.ComboBox("Use party member as leader", FollowerModeSettings.NearbyPlayers.Value, FollowerModeSettings.NearbyPlayers.Values);
+                            NearbyPlayers.Value = ImGuiExtension.ComboBox("Use party member as leader", NearbyPlayers.Value, NearbyPlayers.Values);
+                            if (!String.IsNullOrEmpty(NearbyPlayers.Value))
+                            {
+                                if (ImGui.Button("Set as selected as leader")) FollowerModeSettings.UseNearbyPlayerAsLeaderButton.OnPressed();
+                            }
                         }
 
                         // TODO: Implement this later
@@ -208,7 +228,7 @@ namespace FollowerV2
                         ImGui.TextDisabled($"   hostname: {LeaderModeSettings.ServerHostname.Value}");
                         ImGui.Spacing();
                         ImGui.Spacing();
-                        LeaderModeSettings.LeaderNameToPropagate.Value = ImGuiExtension.InputText("Leader Name To Propagate", LeaderModeSettings.LeaderNameToPropagate);
+                        LeaderModeSettings.LeaderNameToPropagate.Value = ImGuiExtension.InputText("Leader FollowerName To Propagate", LeaderModeSettings.LeaderNameToPropagate);
                         ImGui.Spacing();
 
                         if (ImGui.Button("Set myself as leader")) LeaderModeSettings.SetMyselfAsLeader.OnPressed();
@@ -224,6 +244,21 @@ namespace FollowerV2
                         FollowerModeSettings.LeaderProximityRadius.Value = ImGuiExtension.IntSlider("Leader proximity radius", FollowerModeSettings.LeaderProximityRadius);
                         ImGuiExtension.ToolTipWithText("(?)", "Set \"Debug: show radius\" on to see the radius");
                         ImGuiExtension.ToolTipWithText("(?)", "Color: Yellow");
+
+                        if (ImGui.TreeNodeEx("Follower command settings"))
+                        {
+                            ImGui.TextDisabled("Add here new slaves to command them using the server");
+                            ImGui.Spacing();
+                            LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName.Value = ImGuiExtension.InputText("Slave's name", LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName);
+                            ImGui.Spacing();
+                            NearbyPlayers.Value = ImGuiExtension.ComboBox("Use nearby player's name", NearbyPlayers.Value, NearbyPlayers.Values);
+                            ImGui.Spacing();
+                            if (ImGui.Button("Set selected value")) LeaderModeSettings.NewFollowerCommandClassSetting.UseNearbyPlayerNameButton.OnPressed();
+                            ImGui.Spacing();
+                            ImGui.Spacing();
+                            if (ImGui.Button("Add new slave")) LeaderModeSettings.NewFollowerCommandClassSetting.AddNewFollowerButton.OnPressed();
+                            ImGui.Spacing();
+                        }
 
                         if (ImGui.TreeNodeEx("Advanced leader mode settings"))
                         {
@@ -272,6 +307,8 @@ namespace FollowerV2
         public TextNode LeaderName { get; set; } = new TextNode("");
         public ToggleNode FollowerUseCombat { get; set; } = new ToggleNode(false);
 
+        public ButtonNode UseNearbyPlayerAsLeaderButton { get; set; } = new ButtonNode();
+
         public ListNode FollowerModes { get; set; } = new ListNode
         {
             Values = new List<string> {
@@ -281,7 +318,6 @@ namespace FollowerV2
             Value = FollowerNetworkActivityModeEnum.Local
         };
 
-        public ListNode NearbyPlayers { get; set; } = new ListNode { Values = new List<string>(), Value = "" };
         public FollowerModeNetworkSetting FollowerModeNetworkSettings { get; set; } = new FollowerModeNetworkSetting();
         public RangeNode<int> LeaderProximityRadius { get; set; } = new RangeNode<int>(100, 10, 300);
         public ToggleNode StartNetworkRequesting { get; set; } = new ToggleNode(false);
@@ -300,6 +336,19 @@ namespace FollowerV2
         public ToggleNode PropagateWorkingOfFollowers { get; set; } = new ToggleNode(false);
         public HotkeyNode PropagateWorkingOfFollowersHotkey { get; set; } = Keys.F4;
         public RangeNode<int> LeaderProximityRadiusToPropagate { get; set; } = new RangeNode<int>(100, 1, 300);
+
+        public FollowerCommandSettings FollowerCommandSettings = new FollowerCommandSettings();
+
+        public NewFollowerCommandClassSetting NewFollowerCommandClassSetting = new NewFollowerCommandClassSetting();
+    }
+
+    public class NewFollowerCommandClassSetting
+    {
+        public TextNode FollowerName { get; set; } = new TextNode("");
+
+        public ButtonNode UseNearbyPlayerNameButton { get; set; } = new ButtonNode();
+
+        public ButtonNode AddNewFollowerButton { get; set; } = new ButtonNode();
     }
 
     public class FollowerModeNetworkSetting
@@ -308,6 +357,12 @@ namespace FollowerV2
 
         public RangeNode<int> DelayBetweenRequests { get; set; } = new RangeNode<int>(1000, 300, 3000);
         public RangeNode<int> RequestTimeoutMs { get; set; } = new RangeNode<int>(3000, 1000, 10000);
+    }
+
+    public class FollowerCommandsImguiSetting
+    {
+        public ToggleNode LockPanel { get; set; } = new ToggleNode(false);
+        public ToggleNode NoResize { get; set; } = new ToggleNode(false);
     }
 
 }
