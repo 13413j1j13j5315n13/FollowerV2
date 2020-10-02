@@ -247,6 +247,9 @@ namespace FollowerV2
 
                         if (ImGui.TreeNodeEx("Follower command settings"))
                         {
+                            FollowerCommandsImguiSettings.ShowWindow.Value = ImGuiExtension.Checkbox("Show additional command window", FollowerCommandsImguiSettings.ShowWindow);
+                            ImGui.Spacing();
+                            ImGui.Spacing();
                             ImGui.TextDisabled("Add here new slaves to command them using the server");
                             ImGui.Spacing();
                             LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName.Value = ImGuiExtension.InputText("Slave's name", LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName);
@@ -361,6 +364,7 @@ namespace FollowerV2
 
     public class FollowerCommandsImguiSetting
     {
+        public ToggleNode ShowWindow { get; set; } = new ToggleNode(true);
         public ToggleNode LockPanel { get; set; } = new ToggleNode(false);
         public ToggleNode NoResize { get; set; } = new ToggleNode(false);
     }

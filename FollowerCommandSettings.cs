@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using Newtonsoft.Json;
 
 namespace FollowerV2
 {
@@ -33,24 +37,6 @@ namespace FollowerV2
             return FollowerCommandsDataSet.Select(a => a.FollowerName).ToList();
         }
 
-        public void UseWaypoint(string followerName)
-        {
-            var follower = GetFollowerByName(followerName);
-            if (follower != null)
-            {
-                follower.LastTimeWaypointUsedDateTime = DateTime.UtcNow;
-            }
-        }
-
-        public void UseEntrance(string followerName)
-        {
-            var follower = GetFollowerByName(followerName);
-            if (follower != null)
-            {
-                follower.LastTimeEntranceUsedDateTime = DateTime.UtcNow;
-            }
-        }
-
         private FollowerCommandsDataClass GetFollowerByName(string followerName)
         {
             return FollowerCommandsDataSet.First(a => a.FollowerName == followerName);
@@ -61,15 +47,38 @@ namespace FollowerV2
     {
         public string FollowerName { get; set; }
 
-        public DateTime LastTimeWaypointUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        [JsonIgnore] private int _taskDelayMs = 2000;
 
+        [JsonIgnore]
+        private readonly DateTime _emptyDateTime = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        [JsonIgnore]
         public DateTime LastTimeEntranceUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        [JsonIgnore]
+        public DateTime LastTimePortalUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         public FollowerCommandsDataClass() { }
 
         public FollowerCommandsDataClass(string followerName)
         {
-            FollowerName = followerName;
+            this.FollowerName = followerName;
+        }
+
+        public void SetToUseEntrance()
+        {
+            if (this.LastTimeEntranceUsedDateTime != _emptyDateTime) return;
+
+            this.LastTimeEntranceUsedDateTime = DateTime.UtcNow;
+            Task.Delay(_taskDelayMs).ContinueWith(t => LastTimeEntranceUsedDateTime = _emptyDateTime);
+        }
+
+        public void SetToUsePortal()
+        {
+            if (this.LastTimePortalUsedDateTime != _emptyDateTime) return;
+
+            this.LastTimePortalUsedDateTime = DateTime.UtcNow;
+            Task.Delay(_taskDelayMs).ContinueWith(t => LastTimePortalUsedDateTime = _emptyDateTime);
         }
     }
 }

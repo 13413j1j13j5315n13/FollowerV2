@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using ExileCore;
 using ExileCore.PoEMemory.Components;
@@ -113,21 +114,7 @@ namespace FollowerV2
                 _delayHelper.CallFunction(nameof(StartNetworkRequestingPressed));
             }
 
-            //_testClass.Render();
-            RenderAdditionalImgui();
-
-
-            //// Just draw some test things
-            //Vector2 leftPanelStartDrawPoint = GameController.LeftPanel.StartDrawPoint;
-            //NumericsVector2 firstLineLeft = Graphics.DrawText("leftPanelStartDrawPoint", leftPanelStartDrawPoint, Color.Red, 20, FontAlign.Right);
-
-            //Element stashElement = GameController.IngameState.IngameUi.StashElement;
-            //Vector2 aaa = new Vector2(stashElement.GetClientRectCache.Width, stashElement.GetClientRectCache.Y + 20);
-
-            //Element uiRoot = GameController.IngameState.UIRoot;
-            //RectangleF rect = uiRoot.GetClientRect();
-            //Vector2 a = new Vector2(uiRoot.Width / 2f, 50);
-            //NumericsVector2 uiRootVector2 = Graphics.DrawText("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", aaa, Color.Yellow, 20, FontAlign.Top);
+            if (Settings.FollowerCommandsImguiSettings.ShowWindow.Value) RenderFollowerCommandImgui();
         }
 
         public override Job Tick()
@@ -426,7 +413,7 @@ namespace FollowerV2
             Working,
         }
 
-        private void RenderAdditionalImgui()
+        private void RenderFollowerCommandImgui()
         {
             DateTime emptyDateTime = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -438,7 +425,7 @@ namespace FollowerV2
             if (Settings.FollowerCommandsImguiSettings.LockPanel.Value)
             {
                 newWindowFlags |= ImGuiWindowFlags.NoMove;
-                lockButtonLabel = "Lock";
+                lockButtonLabel = "Locked";
             }
 
             if (Settings.FollowerCommandsImguiSettings.NoResize.Value)
@@ -453,40 +440,56 @@ namespace FollowerV2
             ImGui.TextUnformatted("This window commands");
             ImGui.SameLine();
             if (ImGui.Button(lockButtonLabel))
-                Settings.FollowerCommandsImguiSettings.LockPanel.Value =
-                    !Settings.FollowerCommandsImguiSettings.LockPanel.Value;
+            {
+                Settings.FollowerCommandsImguiSettings.LockPanel.Value = !Settings.FollowerCommandsImguiSettings.LockPanel.Value;
+            }
             ImGui.SameLine();
             if (ImGui.Button(resizeButtonLabel))
-                Settings.FollowerCommandsImguiSettings.NoResize.Value = 
-                    !Settings.FollowerCommandsImguiSettings.NoResize.Value;
-
+            {
+                Settings.FollowerCommandsImguiSettings.NoResize.Value = !Settings.FollowerCommandsImguiSettings.NoResize.Value;
+            }
             ImGui.Spacing();
 
             foreach (var follower in Settings.LeaderModeSettings.FollowerCommandSettings.FollowerCommandsDataSet)
             {
-                NumericsVector4 aaa = NumericsVector4.One;
-
+                ImGui.TextUnformatted($"User: {follower.FollowerName}:");
                 ImGui.SameLine();
-                ImGui.TextUnformatted($"{follower.FollowerName}:  ");
-                ImGui.SameLine();
-
-                if (follower.LastTimeWaypointUsedDateTime != emptyDateTime)
-                {
-                    ImGui.PushStyleColor(ImGuiCol.Button, Color.Red.ToImgui());
-                }
-                if (ImGui.Button("Waypoint")) Settings.LeaderModeSettings.FollowerCommandSettings.UseWaypoint(follower.FollowerName);
-                ImGui.PopStyleColor();
-
                 if (follower.LastTimeEntranceUsedDateTime != emptyDateTime)
                 {
-                    ImGui.PushStyleColor(ImGuiCol.Button, Color.Red.ToImgui());
+                    ImGui.TextUnformatted("E");
+                    ImGui.SameLine();
                 }
+
+                if (follower.LastTimePortalUsedDateTime != emptyDateTime)
+                {
+                    ImGui.TextUnformatted(" P");
+                    ImGui.SameLine();
+                }
+
+                if (ImGui.Button($"Entrance##{follower.FollowerName}")) follower.SetToUseEntrance();
+
                 ImGui.SameLine();
-                if (ImGui.Button("Entrance")) Settings.LeaderModeSettings.FollowerCommandSettings.UseEntrance(follower.FollowerName);
+                if (ImGui.Button($"Portal##{follower.FollowerName}")) follower.SetToUsePortal();
             }
+            ImGui.Spacing();
+
+            List<FollowerCommandsDataClass> followers = Settings.LeaderModeSettings.FollowerCommandSettings.FollowerCommandsDataSet.ToList();
+
+            ImGui.SameLine();
+            ImGui.TextUnformatted($"All:  ");
+            ImGui.SameLine();
+            if (ImGui.Button("Entrance##AllEntrance")) followers.ForEach(f => f.SetToUseEntrance());
+            ImGui.SameLine();
+            if (ImGui.Button("Portal##AllPortal")) followers.ForEach(f => f.SetToUsePortal());
+            ImGui.Spacing();
 
             ImGui.Spacing();
             ImGui.End();
+        }
+
+        private void RenderFollowerCommands(string name, Action useWaypoint, Action useEntrace, Action usePortal)
+        {
+
         }
     }
 }
