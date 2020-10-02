@@ -72,7 +72,9 @@ namespace FollowerV2
                 HttpListenerContext context = _httpListener.GetContext();
                 HttpListenerRequest request = context.Request;
                 HttpListenerResponse response = context.Response;
-                string responseString = "<HTML><BODY> Hello world!</BODY></HTML>";
+
+                string responseString = JsonConvert.SerializeObject(CreateNetworkActivityObject());
+
                 byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
                 response.ContentLength64 = buffer.Length;
                 System.IO.Stream output = response.OutputStream;
@@ -147,7 +149,8 @@ namespace FollowerV2
             {
                 FollowersShouldWork = _followerSettings.LeaderModeSettings.PropagateWorkingOfFollowers.Value,
                 LeaderName = _followerSettings.LeaderModeSettings.LeaderNameToPropagate.Value,
-                LeaderProximityRadius = _followerSettings.LeaderModeSettings.LeaderProximityRadiusToPropagate.Value
+                LeaderProximityRadius = _followerSettings.LeaderModeSettings.LeaderProximityRadiusToPropagate.Value,
+                FollowerCommandSettings =  _followerSettings.LeaderModeSettings.FollowerCommandSetting
             };
         }
 

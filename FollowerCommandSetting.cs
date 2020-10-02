@@ -8,7 +8,7 @@ using Newtonsoft.Json;
 
 namespace FollowerV2
 {
-    public class FollowerCommandSettings
+    public class FollowerCommandSetting
     {
         // Must be public for JSON's "SerializeObject" to work
         public HashSet<FollowerCommandsDataClass> FollowerCommandsDataSet = new HashSet<FollowerCommandsDataClass>();

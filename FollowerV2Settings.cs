@@ -78,7 +78,7 @@ namespace FollowerV2
             LeaderModeSettings.NewFollowerCommandClassSetting.AddNewFollowerButton.OnPressed += (() =>
             {
                 string name = LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName.Value;
-                LeaderModeSettings.FollowerCommandSettings.AddNewFollower(name);
+                LeaderModeSettings.FollowerCommandSetting.AddNewFollower(name);
                 LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName.Value = "";
             });
         }
@@ -241,13 +241,12 @@ namespace FollowerV2
                         LeaderModeSettings.PropagateWorkingOfFollowersHotkey.Value = ImGuiExtension.HotkeySelector("Hotkey to propagate working of follower", LeaderModeSettings.PropagateWorkingOfFollowersHotkey);
                         ImGui.Spacing();
                         ImGui.Spacing();
-                        FollowerModeSettings.LeaderProximityRadius.Value = ImGuiExtension.IntSlider("Leader proximity radius", FollowerModeSettings.LeaderProximityRadius);
+                        LeaderModeSettings.LeaderProximityRadiusToPropagate.Value = ImGuiExtension.IntSlider("Leader proximity radius", LeaderModeSettings.LeaderProximityRadiusToPropagate);
                         ImGuiExtension.ToolTipWithText("(?)", "Set \"Debug: show radius\" on to see the radius");
                         ImGuiExtension.ToolTipWithText("(?)", "Color: Yellow");
 
                         if (ImGui.TreeNodeEx("Follower command settings"))
                         {
-                            FollowerCommandsImguiSettings.ShowWindow.Value = ImGuiExtension.Checkbox("Show additional command window", FollowerCommandsImguiSettings.ShowWindow);
                             ImGui.Spacing();
                             ImGui.Spacing();
                             ImGui.TextDisabled("Add here new slaves to command them using the server");
@@ -307,6 +306,9 @@ namespace FollowerV2
     public class FollowerModeSetting
     {
         public EmptyNode EmptyFollower { get; set; } = new EmptyNode();
+
+        public bool FollowerShouldWork { get; set; } = false;
+
         public TextNode LeaderName { get; set; } = new TextNode("");
         public ToggleNode FollowerUseCombat { get; set; } = new ToggleNode(false);
 
@@ -338,9 +340,9 @@ namespace FollowerV2
         public ButtonNode ServerStop { get; set; } = new ButtonNode();
         public ToggleNode PropagateWorkingOfFollowers { get; set; } = new ToggleNode(false);
         public HotkeyNode PropagateWorkingOfFollowersHotkey { get; set; } = Keys.F4;
-        public RangeNode<int> LeaderProximityRadiusToPropagate { get; set; } = new RangeNode<int>(100, 1, 300);
+        public RangeNode<int> LeaderProximityRadiusToPropagate { get; set; } = new RangeNode<int>(20, 1, 300);
 
-        public FollowerCommandSettings FollowerCommandSettings = new FollowerCommandSettings();
+        public FollowerCommandSetting FollowerCommandSetting = new FollowerCommandSetting();
 
         public NewFollowerCommandClassSetting NewFollowerCommandClassSetting = new NewFollowerCommandClassSetting();
     }

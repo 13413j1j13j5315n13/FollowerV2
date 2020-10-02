@@ -9,8 +9,9 @@ namespace FollowerV2
 {
     class NetworkActivityObject
     {
-        [JsonProperty("followers_should_work")] public bool FollowersShouldWork { get; set; }
-        [JsonProperty("leader_name")] public string LeaderName { get; set; }
-        [JsonProperty("leader_proximity_radius")] public int LeaderProximityRadius { get; set; }
+        public bool FollowersShouldWork { get; set; }
+        public string LeaderName { get; set; }
+        public int LeaderProximityRadius { get; set; }
+        public FollowerCommandSetting FollowerCommandSettings { get; set; }
     }
 }

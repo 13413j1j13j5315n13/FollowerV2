@@ -12,12 +12,15 @@ using ExileCore.Shared.Enums;
 using SharpDX;
 using System.Net;
 using System.IO;
+using System.Windows.Forms;
 using ExileCore.PoEMemory;
 using ExileCore.Shared.Helpers;
 using NumericsVector2 = System.Numerics.Vector2;
 using NumericsVector4 = System.Numerics.Vector4;
 using Newtonsoft.Json;
 using ImGuiNET;
+using TreeRoutine.TreeSharp;
+using Action = System.Action;
 
 namespace FollowerV2
 {
@@ -26,23 +29,34 @@ namespace FollowerV2
         private Coroutine _nearbyPlayersUpdateCoroutine;
         private Coroutine _networkRequestsCoroutine;
         private Coroutine _serverCoroutine;
+        private Coroutine _followerCoroutine;
+
+        public Composite Tree { get; set; }
+
         private readonly DelayHelper _delayHelper = new DelayHelper();
 
         private NetworkRequestStatus _networkRequestStatus = NetworkRequestStatus.Finished;
+        private int _networkRequestStatusRetries = 0;
+
         private Server _server;
 
-        //private readonly TestClass _testClass = new TestClass();
+        private FollowerState _followerState = new FollowerState();
+        private readonly DateTime _emptyDateTime = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         public override bool Initialise()
         {
+            Tree = CreateTree();
+
             _nearbyPlayersUpdateCoroutine = new Coroutine(UpdateNearbyPlayersWork(), this, "Update nearby players", true);
             _networkRequestsCoroutine = new Coroutine(MainNetworkRequestsWork(), this, "Network requests coroutine", true);
             _serverCoroutine = new Coroutine(MainServerWork(), this, "Server coroutine", true);
+            _followerCoroutine = new Coroutine(() => TickTree(Tree), new WaitTime(200), this, "Follower coroutine", true);
 
             // Fire all coroutines
             Core.ParallelRunner.Run(_nearbyPlayersUpdateCoroutine);
             Core.ParallelRunner.Run(_networkRequestsCoroutine);
             Core.ParallelRunner.Run(_serverCoroutine);
+            Core.ParallelRunner.Run(_followerCoroutine);
 
             GameController.LeftPanel.WantUse(() => true);
 
@@ -114,7 +128,10 @@ namespace FollowerV2
                 _delayHelper.CallFunction(nameof(StartNetworkRequestingPressed));
             }
 
-            if (Settings.FollowerCommandsImguiSettings.ShowWindow.Value) RenderFollowerCommandImgui();
+            if (Settings.FollowerCommandsImguiSettings.ShowWindow.Value && Settings.Profiles.Value == ProfilesEnum.Leader)
+            {
+                RenderFollowerCommandImgui();
+            }
         }
 
         public override Job Tick()
@@ -131,11 +148,186 @@ namespace FollowerV2
 
             return null;
         }
-
         public override void DrawSettings()
         {
             Settings.DrawSettings();
         }
+
+        private Composite CreateTree()
+        {
+            LogMsgWithVerboseDebug($"{nameof(CreateTree)} called");
+
+            return new Decorator(x => ShouldWork() && CanTick() && IsPlayerAlive(),
+                new PrioritySelector(
+                    CreateFollowingComposite()
+                )
+            );
+        }
+
+        private Composite CreateFollowingComposite()
+        {
+            LogMsgWithVerboseDebug($"{nameof(CreateFollowingComposite)} called");
+
+            return new Decorator(x => ShouldFollowLeader(),
+                new Sequence(
+                    new TreeRoutine.TreeSharp.Action(x =>
+                    {
+                        IEnumerable<Entity> players = GameController.Entities.Where(e => e.Type == EntityType.Player);
+                        Entity leaderPlayer = players.FirstOrDefault(e => e.GetComponent<Player>().PlayerName == Settings.FollowerModeSettings.LeaderName.Value);
+
+                        LogMsgWithVerboseDebug($"leaderPlayer: {leaderPlayer}");
+
+                        if (leaderPlayer != null)
+                        {
+                            LogMsgWithVerboseDebug("Hovering and clicking on leader");
+
+                            HoverTo(leaderPlayer);
+                            return TreeRoutine.TreeSharp.RunStatus.Success;
+                        }
+
+                        return TreeRoutine.TreeSharp.RunStatus.Failure;
+                    }),
+                    new TreeRoutine.TreeSharp.Action(x =>
+                    {
+                        LogMsgWithVerboseDebug("Pressing Keys.T");
+
+                        Input.KeyPressRelease(Keys.T);
+                        return TreeRoutine.TreeSharp.RunStatus.Success;
+                    })
+                )
+            );
+        }
+
+        #region TreeSharp Related
+
+        private bool ShouldFollowLeader()
+        {
+            LogMsgWithVerboseDebug($"{nameof(ShouldFollowLeader)} called");
+
+            bool leaderNotEmpty = !string.IsNullOrEmpty(Settings.FollowerModeSettings.LeaderName.Value);
+            Entity leaderEntity = GetLeaderEntity();
+            if (leaderEntity == null) return leaderNotEmpty;
+
+            var distance = leaderEntity.Distance(GameController.Player);
+            LogMsgWithVerboseDebug($"  distance: {distance}");
+            LogMsgWithVerboseDebug($"  proximity: {Settings.FollowerModeSettings.LeaderProximityRadius.Value}");
+            bool outsideBorders = distance > Settings.FollowerModeSettings.LeaderProximityRadius.Value;
+
+            return leaderNotEmpty && outsideBorders;
+        }
+
+        private bool CanTick()
+        {
+            //LogMsgWithVerboseDebug($"{nameof(CanTick)} called");
+
+            if (GameController.IsLoading)
+            {
+                return false;
+            }
+
+            if (!GameController.Game.IngameState.ServerData.IsInGame)
+            {
+                return false;
+            }
+            if (!GameController.Game.IngameState.ServerData.IsInGame)
+            {
+                return false;
+            }
+            else if (GameController.Player == null || GameController.Player.Address == 0 || !GameController.Player.IsValid)
+            {
+                return false;
+            }
+            else if (!GameController.Window.IsForeground())
+            {
+                return false;
+            }
+
+            //LogMsgWithVerboseDebug("    CanTick returning true");
+
+            return true;
+        }
+
+        private bool IsPlayerAlive()
+        {
+            return GameController.Game.IngameState.Data.LocalPlayer.GetComponent<Life>().CurHP > 0;
+        }
+
+        private bool ShouldWork()
+        {
+            //LogMsgWithVerboseDebug($"{nameof(ShouldWork)} called");
+
+            if (Settings.Profiles.Value == ProfilesEnum.Follower)
+            {
+                //LogMsgWithVerboseDebug($"    returning {Settings.FollowerModeSettings.FollowerShouldWork}");
+
+                return Settings.FollowerModeSettings.FollowerShouldWork;
+            }
+
+            //LogMsgWithVerboseDebug("    returning false");
+            return false;
+        }
+
+        #endregion
+
+        private void TickTree(Composite treeRoot)
+        {
+            treeRoot.Start(null);
+
+            try
+            {
+                treeRoot.Tick(null);
+            }
+            catch (Exception e)
+            {
+                LogError($"{Name}: Exception! \nMessage: {e.Message} \n{e.StackTrace}", 30);
+                throw e;
+            }
+
+            if (treeRoot.LastStatus != RunStatus.Running)
+            {
+                // Reset the tree, and begin the execution all over...
+                treeRoot.Stop(null);
+                treeRoot.Start(null);
+            }
+        }
+
+        //private void TickTree(Composite treeRoot)
+        //{
+        //    try
+        //    {
+        //        if (!Settings.Enable)
+        //            return;
+
+        //        if (treeRoot == null)
+        //        {
+        //            LogError("Plugin is not initialized");
+        //            return;
+        //        }
+
+        //        if (treeRoot.LastStatus != null)
+        //        {
+        //            treeRoot.Tick(null);
+
+        //            // If the last status wasn't running, stop the tree, and restart it.
+        //            if (treeRoot.LastStatus != RunStatus.Running)
+        //            {
+        //                //LogMsgWithVerboseDebug("Stopping and restarting the tree in TickTree");
+        //                treeRoot.Stop(null);
+        //                treeRoot.Start(null);
+        //            }
+        //        }
+        //        else
+        //        {
+        //            treeRoot.Start(null);
+        //            RunStatus status = treeRoot.Tick(null);
+        //        }
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        LogError($"{Name}: Exception! \nMessage: {e.Message} \n{e.StackTrace}", 30);
+        //        throw e;
+        //    }
+        //}
 
         private void OnProfileChange(string profile)
         {
@@ -229,6 +421,7 @@ namespace FollowerV2
         private void OnStartNetworkRequestingValueChanged(object obj, bool value)
         {
             LogMsgWithVerboseDebug("OnStartNetworkRequestingValueChanged called");
+            if (!value) Settings.FollowerModeSettings.FollowerShouldWork = false;
         }
 
         private IEnumerator MainNetworkRequestsWork()
@@ -237,7 +430,7 @@ namespace FollowerV2
 
             while (true)
             {
-                if (Settings.Profiles.Value != ProfilesEnum.Follower || !Settings.LeaderModeSettings.StartServer.Value || !Settings.FollowerModeSettings.StartNetworkRequesting.Value)
+                if (Settings.Profiles.Value != ProfilesEnum.Follower || !Settings.FollowerModeSettings.StartNetworkRequesting.Value)
                 {
                     yield return new WaitTime(100);
                     continue;
@@ -332,9 +525,15 @@ namespace FollowerV2
                 yield break;
             }
 
+            if (_networkRequestStatusRetries > 10)
+            {
+                _networkRequestStatus = NetworkRequestStatus.Finished;
+            }
+
             if (_networkRequestStatus == NetworkRequestStatus.Working)
             {
                 LogMsgWithVerboseDebug("    request has not been finished in DoFollowerNetworkActivityWork");
+                _networkRequestStatusRetries++;
                 yield break;
             }
 
@@ -379,8 +578,17 @@ namespace FollowerV2
                 return;
             }
 
+            Settings.FollowerModeSettings.FollowerShouldWork = obj.FollowersShouldWork;
             Settings.FollowerModeSettings.LeaderName.Value = obj.LeaderName;
             Settings.FollowerModeSettings.LeaderProximityRadius.Value = obj.LeaderProximityRadius;
+
+            string selfName = GameController.EntityListWrapper.Player.GetComponent<Player>().PlayerName;
+            var follower = obj.FollowerCommandSettings.FollowerCommandsDataSet.First(f => f.FollowerName == selfName);
+
+            if (follower == null) return;
+
+            _followerState.LastTimeEntranceUsedDateTime = follower.LastTimeEntranceUsedDateTime;
+            _followerState.LastTimePortalUsedDateTime = follower.LastTimePortalUsedDateTime;
         }
 
         private void StartNetworkRequestingPressed()
@@ -450,7 +658,7 @@ namespace FollowerV2
             }
             ImGui.Spacing();
 
-            foreach (var follower in Settings.LeaderModeSettings.FollowerCommandSettings.FollowerCommandsDataSet)
+            foreach (var follower in Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet)
             {
                 ImGui.TextUnformatted($"User: {follower.FollowerName}:");
                 ImGui.SameLine();
@@ -473,7 +681,7 @@ namespace FollowerV2
             }
             ImGui.Spacing();
 
-            List<FollowerCommandsDataClass> followers = Settings.LeaderModeSettings.FollowerCommandSettings.FollowerCommandsDataSet.ToList();
+            List<FollowerCommandsDataClass> followers = Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.ToList();
 
             ImGui.SameLine();
             ImGui.TextUnformatted($"All:  ");
