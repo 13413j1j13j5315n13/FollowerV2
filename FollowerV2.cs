@@ -12,6 +12,7 @@ using ExileCore.Shared.Enums;
 using SharpDX;
 using System.Net;
 using System.IO;
+using System.Threading;
 using System.Windows.Forms;
 using ExileCore.PoEMemory;
 using ExileCore.Shared.Helpers;
@@ -36,11 +37,13 @@ namespace FollowerV2
         private readonly DelayHelper _delayHelper = new DelayHelper();
 
         private NetworkRequestStatus _networkRequestStatus = NetworkRequestStatus.Finished;
+
         private int _networkRequestStatusRetries = 0;
 
         private Server _server;
 
         private FollowerState _followerState = new FollowerState();
+
         private readonly DateTime _emptyDateTime = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         public override bool Initialise()
@@ -50,7 +53,7 @@ namespace FollowerV2
             _nearbyPlayersUpdateCoroutine = new Coroutine(UpdateNearbyPlayersWork(), this, "Update nearby players", true);
             _networkRequestsCoroutine = new Coroutine(MainNetworkRequestsWork(), this, "Network requests coroutine", true);
             _serverCoroutine = new Coroutine(MainServerWork(), this, "Server coroutine", true);
-            _followerCoroutine = new Coroutine(() => TickTree(Tree), new WaitTime(200), this, "Follower coroutine", true);
+            _followerCoroutine = new Coroutine(MainFollowerWork(), this, "Follower coroutine", true);
 
             // Fire all coroutines
             Core.ParallelRunner.Run(_nearbyPlayersUpdateCoroutine);
@@ -93,8 +96,15 @@ namespace FollowerV2
 
             SetAllOnCallbacks();
 
-            _server = new Server(Settings);
-            _server.RestartServer();
+            try
+            {
+                _server = new Server(Settings);
+                _server.RestartServer();
+            }
+            catch (Exception e)
+            {
+                LogMsgWithDebug($"Initializing Server failed.\n{e.Message}\n{e.StackTrace}");
+            }
         }
 
         public override void Render()
@@ -132,6 +142,40 @@ namespace FollowerV2
             {
                 RenderFollowerCommandImgui();
             }
+
+            WriteLeftPanelTexts();
+        }
+
+        private void WriteLeftPanelTexts()
+        {
+            int fontHeight = 20;
+            Vector2 startDrawPoint = GameController.LeftPanel.StartDrawPoint;
+
+            bool isLocalMode = Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Local;
+            bool isNetworkMode = Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network;
+            bool isLeaderProfile = Settings.Profiles.Value == ProfilesEnum.Leader;
+            bool isFollowerProfile = Settings.Profiles.Value == ProfilesEnum.Follower;
+
+            NumericsVector2 firstLine = Graphics.DrawText("FollowerV2    ", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+            startDrawPoint.Y += firstLine.Y;
+
+            firstLine = Graphics.DrawText($"Profile: {Settings.Profiles.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+            startDrawPoint.Y += firstLine.Y;
+
+            firstLine = Graphics.DrawText($"FollowerMode: {Settings.FollowerModeSettings.FollowerModes.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+            startDrawPoint.Y += firstLine.Y;
+
+            if (isFollowerProfile && isNetworkMode)
+            {
+                firstLine = Graphics.DrawText($"Network requesting: {Settings.FollowerModeSettings.StartNetworkRequesting.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+                startDrawPoint.Y += firstLine.Y;
+            }
+
+            if (isLeaderProfile && isNetworkMode)
+            {
+                firstLine = Graphics.DrawText($"Propagate working: {Settings.LeaderModeSettings.PropagateWorkingOfFollowers.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+                startDrawPoint.Y += firstLine.Y;
+            }
         }
 
         public override Job Tick()
@@ -159,6 +203,13 @@ namespace FollowerV2
 
             return new Decorator(x => ShouldWork() && CanTick() && IsPlayerAlive(),
                 new PrioritySelector(
+                    new Decorator(x => IsActionInProgress(),
+                        new TreeRoutine.TreeSharp.Action(x => TreeRoutine.TreeSharp.RunStatus.Running)
+                    ),
+                    //CreateUsingPortalComposite(),
+                    CreateUsingEntranceComposite(),
+
+                    // Following has the lowest priority
                     CreateFollowingComposite()
                 )
             );
@@ -198,7 +249,127 @@ namespace FollowerV2
             );
         }
 
+        //private Composite CreateUsingPortalComposite()
+        //{
+        //    LogMsgWithVerboseDebug($"{nameof(CreateUsingPortalComposite)} called");
+
+        //    return new Decorator(x => ShouldUsePortal(),
+        //        new Sequence(
+        //            new TreeRoutine.TreeSharp.Action(x =>
+        //            {
+        //                LogMsgWithVerboseDebug("Using portal");
+
+        //                _followerState.CurrentAction = ActionsEnum.UsingPortal;
+        //                _followerState.SavedLastTimePortalUsedDateTime = _followerState.LastTimePortalUsedDateTime;
+
+        //                return TreeRoutine.TreeSharp.RunStatus.Success;
+        //            }),
+        //            HoverToEntityTypeAction(EntityType.TownPortal),
+        //            MouseClickAction(),
+        //            SleepAction(3000),
+        //            new TreeRoutine.TreeSharp.Action(x =>
+        //            {
+        //                _followerState.CurrentAction = ActionsEnum.Nothing;
+        //                _followerState.SavedLastTimePortalUsedDateTime = _emptyDateTime;
+
+        //                return TreeRoutine.TreeSharp.RunStatus.Success;
+        //            })
+        //        )
+        //    );
+        //}
+
+        private Composite CreateUsingEntranceComposite()
+        {
+            LogMsgWithVerboseDebug($"{nameof(CreateUsingEntranceComposite)} called");
+
+            return new Decorator(x => ShouldUseEntrance(),
+                new Sequence(
+                    new TreeRoutine.TreeSharp.Action(x =>
+                    {
+                        LogMsgWithVerboseDebug("Using entrance");
+
+                        _followerState.CurrentAction = ActionsEnum.UsingEntrance;
+                        _followerState.SavedLastTimeEntranceUsedDateTime = _followerState.LastTimeEntranceUsedDateTime;
+
+                        var testi = HoverToEntityTypeAction(EntityType.AreaTransition);
+
+                        _followerState.CurrentAction = ActionsEnum.Nothing;
+                        _followerState.SavedLastTimeEntranceUsedDateTime = _emptyDateTime;
+
+                        if (!testi) return TreeRoutine.TreeSharp.RunStatus.Failure;
+
+                        Mouse.LeftClick(10);
+                        Thread.Sleep(10);
+
+                        Thread.Sleep(2000);
+
+                        return TreeRoutine.TreeSharp.RunStatus.Success;
+                    })
+                )
+            );
+        }
+
+        private bool HoverToEntityTypeAction(EntityType entityType)
+        {
+            List<Entity> entities = GetEntitiesByEntityTypeAndSortByDistance(entityType, GameController.Player);
+
+            if (!entities.Any()) return false;
+
+            Entity entity = entities.First();
+            int yOffset = 20;
+
+            HoverTo(entity);
+
+            bool targeted = false;
+            int iteration = 0;
+            int maxIterations = 20;
+
+            while (iteration < maxIterations)
+            {
+                if (entity.GetComponent<Targetable>().isTargeted)
+                {
+                    targeted = true;
+                    break;
+                }
+
+                HoverTo(entity, 0, -yOffset * iteration);
+
+                iteration++;
+                Thread.Sleep(50);
+            }
+
+            Thread.Sleep(50);
+
+            return targeted;
+        }
+
+        private TreeRoutine.TreeSharp.Action SleepAction(int timeoutMs)
+        {
+            return new TreeRoutine.TreeSharp.Action(x =>
+            {
+                Thread.Sleep(2000);
+                return TreeRoutine.TreeSharp.RunStatus.Success;
+            });
+        }
+
         #region TreeSharp Related
+
+        private bool ShouldUseEntrance()
+        {
+            return _followerState.LastTimeEntranceUsedDateTime != _emptyDateTime &&
+                   _followerState.LastTimeEntranceUsedDateTime != _followerState.SavedLastTimeEntranceUsedDateTime;
+        }
+
+        private bool ShouldUsePortal()
+        {
+            return _followerState.LastTimePortalUsedDateTime != _emptyDateTime &&
+                   _followerState.LastTimePortalUsedDateTime != _followerState.SavedLastTimePortalUsedDateTime;
+        }
+
+        private bool IsActionInProgress()
+        {
+            return _followerState.CurrentAction != ActionsEnum.Nothing;
+        }
 
         private bool ShouldFollowLeader()
         {
@@ -441,9 +612,38 @@ namespace FollowerV2
             }
         }
 
+        private IEnumerator MainFollowerWork()
+        {
+            LogMsgWithVerboseDebug($"Starting {nameof(MainFollowerWork)} function");
+
+            while (true)
+            {
+                Tree.Start(null);
+
+                try
+                {
+                    Tree.Tick(null);
+                }
+                catch (Exception e)
+                {
+                    LogError($"{Name}: Exception! \nMessage: {e.Message} \n{e.StackTrace}", 30);
+                    throw e;
+                }
+
+                if (Tree.LastStatus != RunStatus.Running)
+                {
+                    // Reset the tree, and begin the execution all over...
+                    Tree.Stop(null);
+                    Tree.Start(null);
+                }
+
+                yield return new WaitTime(50);
+            }
+        }
+
         private IEnumerator MainServerWork()
         {
-            LogMsgWithVerboseDebug("Starting MainServerWork function");
+            LogMsgWithVerboseDebug($"Starting {nameof(MainServerWork)} function");
 
             while (true)
             {
@@ -489,11 +689,13 @@ namespace FollowerV2
         {
             string leaderName = Settings.FollowerModeSettings.LeaderName.Value;
 
-            IEnumerable<Entity> players = GameController.Entities.Where(x => x.Type == EntityType.Player);
-            return players.FirstOrDefault(x => x.GetComponent<Player>().PlayerName == leaderName);
+            return GameController.Entities
+                .ToList() // Solves "Collection was modified; enumeration operation may not execute"
+                .Where(x => x.Type == EntityType.Player)
+                .FirstOrDefault(x => x.GetComponent<Player>().PlayerName == leaderName);
         }
 
-        private void HoverTo(Entity entity)
+        private void HoverTo(Entity entity, int xOffset = 0, int yOffset = 0)
         {
             LogMsgWithVerboseDebug("HoverTo called");
 
@@ -507,7 +709,7 @@ namespace FollowerV2
             var randomXOffset = new Random().Next(0, Settings.RandomClickOffset.Value);
             var randomYOffset = new Random().Next(0, Settings.RandomClickOffset.Value);
 
-            Vector2 finalPos = new Vector2(result.X + randomXOffset, result.Y + randomYOffset);
+            Vector2 finalPos = new Vector2(result.X + randomXOffset + xOffset, result.Y + randomYOffset + yOffset);
 
             Mouse.MoveCursorToPosition(finalPos);
         }
@@ -525,7 +727,7 @@ namespace FollowerV2
                 yield break;
             }
 
-            if (_networkRequestStatusRetries > 10)
+            if (_networkRequestStatusRetries > 5)
             {
                 _networkRequestStatus = NetworkRequestStatus.Finished;
             }
@@ -567,6 +769,13 @@ namespace FollowerV2
             }
 
             yield break;
+        }
+
+        private List<Entity> GetEntitiesByEntityTypeAndSortByDistance(EntityType entityType, Entity entity)
+        {
+            return GameController.EntityListWrapper.ValidEntitiesByType[entityType]
+                .OrderBy(o => FollowerHelpers.EntityDistance(o, entity))
+                .ToList();
         }
 
         private void ProcessNetworkActivityResponse(NetworkActivityObject obj)
@@ -678,6 +887,9 @@ namespace FollowerV2
 
                 ImGui.SameLine();
                 if (ImGui.Button($"Portal##{follower.FollowerName}")) follower.SetToUsePortal();
+
+                ImGui.SameLine();
+                if (ImGui.Button($"Del##{follower.FollowerName}")) Settings.LeaderModeSettings.FollowerCommandSetting.RemoveFollower(follower.FollowerName);
             }
             ImGui.Spacing();
 

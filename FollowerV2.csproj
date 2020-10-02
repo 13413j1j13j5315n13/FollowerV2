@@ -102,6 +102,7 @@
     <Compile Include="DebugHelper.cs" />
     <Compile Include="DelayHelper.cs" />
     <Compile Include="FollowerCommandSetting.cs" />
+    <Compile Include="FollowerHelpers.cs" />
     <Compile Include="FollowerState.cs" />
     <Compile Include="FollowerV2Settings.cs" />
     <Compile Include="FollowerV2.cs" />

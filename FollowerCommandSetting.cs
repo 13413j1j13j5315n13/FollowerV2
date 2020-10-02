@@ -45,17 +45,15 @@ namespace FollowerV2
 
     public class FollowerCommandsDataClass
     {
-        public string FollowerName { get; set; }
-
         [JsonIgnore] private int _taskDelayMs = 2000;
 
         [JsonIgnore]
         private readonly DateTime _emptyDateTime = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        [JsonIgnore]
+        public string FollowerName { get; set; }
+
         public DateTime LastTimeEntranceUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        [JsonIgnore]
         public DateTime LastTimePortalUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         public FollowerCommandsDataClass() { }
