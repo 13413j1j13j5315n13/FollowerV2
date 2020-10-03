@@ -93,6 +93,7 @@ namespace FollowerV2
             _delayHelper.AddToDelayManager(nameof(OnPropagateWorkingOfFollowersHotkeyPressed), OnPropagateWorkingOfFollowersHotkeyPressed, 1000);
             _delayHelper.AddToDelayManager(nameof(DebugHoverToLeader), DebugHoverToLeader, 50);
             _delayHelper.AddToDelayManager(nameof(StartNetworkRequestingPressed), StartNetworkRequestingPressed, 1000);
+            _delayHelper.AddToDelayManager(nameof(SendPickupItemSignal), SendPickupItemSignal, 1000);
 
             SetAllOnCallbacks();
 
@@ -169,6 +170,9 @@ namespace FollowerV2
             {
                 firstLine = Graphics.DrawText($"Network requesting: {Settings.FollowerModeSettings.StartNetworkRequesting.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
                 startDrawPoint.Y += firstLine.Y;
+
+                firstLine = Graphics.DrawText($"Follower working: {Settings.FollowerModeSettings.FollowerShouldWork}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+                startDrawPoint.Y += firstLine.Y;
             }
 
             if (isLeaderProfile && isNetworkMode)
@@ -190,8 +194,68 @@ namespace FollowerV2
             }
             // Debug related ends
 
+            if (Settings.Profiles.Value == ProfilesEnum.Leader)
+            {
+                if (Input.GetKeyState(Keys.ControlKey))
+                {
+                    Keys[] numberKeys = { Keys.D1, Keys.D2, Keys.D3, Keys.D4, Keys.D5, Keys.D6, Keys.D7, Keys.D8, Keys.D9, Keys.D0 };
+                    bool anyNumberKeyPressed = numberKeys.Any(Input.GetKeyState);
+                    if (anyNumberKeyPressed)
+                    {
+                        _delayHelper.CallFunction(nameof(SendPickupItemSignal));
+                    }
+                }
+            }
+
             return null;
         }
+
+        private void SendPickupItemSignal()
+        {
+            int index;
+            if (Input.GetKeyState(Keys.D1)) index = 0;
+            else if (Input.GetKeyState(Keys.D2)) index = 1;
+            else if (Input.GetKeyState(Keys.D3)) index = 2;
+            else if (Input.GetKeyState(Keys.D4)) index = 3;
+            else if (Input.GetKeyState(Keys.D5)) index = 4;
+            else if (Input.GetKeyState(Keys.D6)) index = 5;
+            else if (Input.GetKeyState(Keys.D7)) index = 6;
+            else if (Input.GetKeyState(Keys.D8)) index = 7;
+            else if (Input.GetKeyState(Keys.D9)) index = 8;
+            else if (Input.GetKeyState(Keys.D0)) index = 9;
+            else
+            {
+                LogMsgWithVerboseDebug("*** No proper number key pressed found");
+                return;
+            }
+
+            int len = Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.Count;
+            if (index > len - 1)
+            {
+                LogMsgWithVerboseDebug("*** index was larger than length");
+                return;
+            }
+
+            FollowerCommandsDataClass follower = Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.ElementAt(index);
+
+            Entity targetedEntity = GameController.EntityListWrapper.Entities
+                .Where(e => e.GetComponent<Targetable>() != null)
+                .Where(e => e.Type != EntityType.Player)
+                .Where(e => e.Type != EntityType.Monster)
+                .FirstOrDefault(e => e.GetComponent<Targetable>().isTargeted);
+
+            if (targetedEntity == null)
+            {
+                LogMsgWithVerboseDebug("*** No targeted item found");
+                return;
+            }
+
+            int entityId = (int)targetedEntity.Id;
+            LogMsgWithVerboseDebug($"*** Setting follower {follower.FollowerName} to pick item id {entityId}");
+
+            follower.SetPickupNormalItem(entityId);
+        }
+
         public override void DrawSettings()
         {
             Settings.DrawSettings();
@@ -201,12 +265,11 @@ namespace FollowerV2
         {
             LogMsgWithVerboseDebug($"{nameof(CreateTree)} called");
 
-            return new Decorator(x => ShouldWork() && CanTick() && IsPlayerAlive(),
+            return new Decorator(x => ShouldWork() && BtCanTick() && IsPlayerAlive(),
                 new PrioritySelector(
-                    new Decorator(x => IsActionInProgress(),
-                        new TreeRoutine.TreeSharp.Action(x => TreeRoutine.TreeSharp.RunStatus.Running)
-                    ),
-                    //CreateUsingPortalComposite(),
+                    CreatePickingTargetedItemComposite(),
+                    CreatePickingQuestItemComposite(),
+                    CreateUsingPortalComposite(),
                     CreateUsingEntranceComposite(),
 
                     // Following has the lowest priority
@@ -226,57 +289,139 @@ namespace FollowerV2
                         IEnumerable<Entity> players = GameController.Entities.Where(e => e.Type == EntityType.Player);
                         Entity leaderPlayer = players.FirstOrDefault(e => e.GetComponent<Player>().PlayerName == Settings.FollowerModeSettings.LeaderName.Value);
 
-                        LogMsgWithVerboseDebug($"leaderPlayer: {leaderPlayer}");
+                        //LogMsgWithVerboseDebug($"leaderPlayer: {leaderPlayer}");
 
                         if (leaderPlayer != null)
                         {
-                            LogMsgWithVerboseDebug("Hovering and clicking on leader");
+                            //LogMsgWithVerboseDebug("Hovering and clicking on leader");
 
                             HoverTo(leaderPlayer);
-                            return TreeRoutine.TreeSharp.RunStatus.Success;
-                        }
 
-                        return TreeRoutine.TreeSharp.RunStatus.Failure;
-                    }),
+                            Input.KeyDown(Keys.T);
+                            Thread.Sleep(5);
+                            Input.KeyUp(Keys.T);
+                        }
+                    })
+                )
+            );
+        }
+
+        private Composite CreatePickingQuestItemComposite()
+        {
+            return new Decorator(x => ShouldPickupQuestItem(),
+                new Sequence(
+                    new TreeRoutine.TreeSharp.Action(x =>
+                        {
+                            LogMsgWithVerboseDebug("Picking quest item");
+
+                            Input.KeyUp(Keys.T);
+
+                            _followerState.LastTimeQuestItemPickupDateTime = _emptyDateTime;
+                            _followerState.SavedLastTimeQuestItemPickupDateTime = _emptyDateTime;
+
+                            // Take only quest items
+                            Entity entity = GameController.EntityListWrapper.Entities
+                                .Where(e => e.Type == EntityType.WorldItem)
+                                .Where(e => e.IsTargetable)
+                                .Where(e => e.GetComponent<WorldItem>() != null)
+                                .FirstOrDefault(e =>
+                                {
+                                    Entity itemEntity = e.GetComponent<WorldItem>().ItemEntity;
+                                    return GameController.Files.BaseItemTypes.Translate(itemEntity.Path).ClassName == "QuestItem";
+                                });
+
+                            if (entity == null) return TreeRoutine.TreeSharp.RunStatus.Failure;
+
+                            Input.KeyDown(Keys.F);
+                            var hovered = HoverToEntityAction(entity);
+                            Input.KeyUp(Keys.F);
+
+                            if (!hovered) return TreeRoutine.TreeSharp.RunStatus.Failure;
+
+                            Input.KeyDown(Keys.F);
+                            Mouse.LeftClick(10);
+                            Thread.Sleep(2000);
+                            Input.KeyUp(Keys.F);
+
+                            return TreeRoutine.TreeSharp.RunStatus.Success;
+                        })
+                )
+            );
+        }
+
+        private Composite CreatePickingTargetedItemComposite()
+        {
+            return new Decorator(x => ShouldPickupNormalItem(),
+                new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
                     {
-                        LogMsgWithVerboseDebug("Pressing Keys.T");
+                        LogMsgWithVerboseDebug($"Picking targeted item with id {_followerState.NormalItemId}");
 
-                        Input.KeyPressRelease(Keys.T);
+                        Input.KeyUp(Keys.T);
+
+                        _followerState.SavedLastTimeNormalItemPickupDateTime = _emptyDateTime;
+                        _followerState.LastTimeNormalItemPickupDateTime = _followerState.LastTimeNormalItemPickupDateTime;
+
+                        Entity entity = GameController.EntityListWrapper.Entities.FirstOrDefault(e => e.Id == _followerState.NormalItemId);
+
+                        if (entity == null) return TreeRoutine.TreeSharp.RunStatus.Success;
+
+                        Input.KeyDown(Keys.F);
+                        Thread.Sleep(20);
+                        Input.KeyDown(Keys.Alt);
+                        Thread.Sleep(20);
+                        var hovered = HoverToEntityAction(entity);
+                        Thread.Sleep(20);
+                        Input.KeyUp(Keys.F);
+                        Thread.Sleep(20);
+                        Input.KeyUp(Keys.Alt);
+
+                        if (!hovered) return TreeRoutine.TreeSharp.RunStatus.Failure;
+
+                        Input.KeyDown(Keys.F);
+                        Input.KeyDown(Keys.Alt);
+                        Thread.Sleep(100);
+                        Mouse.LeftClick(10);
+                        Thread.Sleep(2000);
+                        Input.KeyUp(Keys.F);
+                        Input.KeyUp(Keys.Alt);
+
                         return TreeRoutine.TreeSharp.RunStatus.Success;
                     })
                 )
             );
         }
 
-        //private Composite CreateUsingPortalComposite()
-        //{
-        //    LogMsgWithVerboseDebug($"{nameof(CreateUsingPortalComposite)} called");
+        private Composite CreateUsingPortalComposite()
+        {
+            LogMsgWithVerboseDebug($"{nameof(CreateUsingPortalComposite)} called");
 
-        //    return new Decorator(x => ShouldUsePortal(),
-        //        new Sequence(
-        //            new TreeRoutine.TreeSharp.Action(x =>
-        //            {
-        //                LogMsgWithVerboseDebug("Using portal");
+            return new Decorator(x => ShouldUsePortal(),
+                new Sequence(
+                    new TreeRoutine.TreeSharp.Action(x =>
+                    {
+                        LogMsgWithVerboseDebug("Using portal");
 
-        //                _followerState.CurrentAction = ActionsEnum.UsingPortal;
-        //                _followerState.SavedLastTimePortalUsedDateTime = _followerState.LastTimePortalUsedDateTime;
+                        Input.KeyUp(Keys.T);
 
-        //                return TreeRoutine.TreeSharp.RunStatus.Success;
-        //            }),
-        //            HoverToEntityTypeAction(EntityType.TownPortal),
-        //            MouseClickAction(),
-        //            SleepAction(3000),
-        //            new TreeRoutine.TreeSharp.Action(x =>
-        //            {
-        //                _followerState.CurrentAction = ActionsEnum.Nothing;
-        //                _followerState.SavedLastTimePortalUsedDateTime = _emptyDateTime;
+                        _followerState.SavedLastTimePortalUsedDateTime = _emptyDateTime;
+                        _followerState.LastTimePortalUsedDateTime = _emptyDateTime;
 
-        //                return TreeRoutine.TreeSharp.RunStatus.Success;
-        //            })
-        //        )
-        //    );
-        //}
+                        List<Entity> entities = GetEntitiesByEntityTypeAndSortByDistance(EntityType.TownPortal, GameController.Player);
+                        if (!entities.Any()) return TreeRoutine.TreeSharp.RunStatus.Failure;
+
+                        var hovered = HoverToEntityAction(entities.First());
+
+                        if (!hovered) return TreeRoutine.TreeSharp.RunStatus.Failure;
+
+                        Mouse.LeftClick(10);
+                        Thread.Sleep(2000);
+
+                        return TreeRoutine.TreeSharp.RunStatus.Success;
+                    })
+                )
+            );
+        }
 
         private Composite CreateUsingEntranceComposite()
         {
@@ -288,19 +433,23 @@ namespace FollowerV2
                     {
                         LogMsgWithVerboseDebug("Using entrance");
 
+                        Input.KeyUp(Keys.T);
+
                         _followerState.CurrentAction = ActionsEnum.UsingEntrance;
                         _followerState.SavedLastTimeEntranceUsedDateTime = _followerState.LastTimeEntranceUsedDateTime;
 
-                        var testi = HoverToEntityTypeAction(EntityType.AreaTransition);
+                        List<Entity> entities = GetEntitiesByEntityTypeAndSortByDistance(EntityType.AreaTransition, GameController.Player);
+
+                        if (!entities.Any()) return TreeRoutine.TreeSharp.RunStatus.Failure;
+
+                        var hovered = HoverToEntityAction(entities.First());
 
                         _followerState.CurrentAction = ActionsEnum.Nothing;
                         _followerState.SavedLastTimeEntranceUsedDateTime = _emptyDateTime;
 
-                        if (!testi) return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        if (!hovered) return TreeRoutine.TreeSharp.RunStatus.Failure;
 
                         Mouse.LeftClick(10);
-                        Thread.Sleep(10);
-
                         Thread.Sleep(2000);
 
                         return TreeRoutine.TreeSharp.RunStatus.Success;
@@ -309,22 +458,27 @@ namespace FollowerV2
             );
         }
 
-        private bool HoverToEntityTypeAction(EntityType entityType)
+        private bool HoverToEntityAction(Entity entity)
         {
-            List<Entity> entities = GetEntitiesByEntityTypeAndSortByDistance(entityType, GameController.Player);
+            Random rnd = new Random();
+            int offsetValue = 10;
 
-            if (!entities.Any()) return false;
+            // Matrix of offsets as vectors. Try each offset and see whether the entity's isTargeted is true
+            List<Vector2> offsets = new List<Vector2>();
 
-            Entity entity = entities.First();
-            int yOffset = 20;
+            foreach (int xOffset in Enumerable.Range(-20, 20))
+            {
+                foreach (int yOffset in Enumerable.Range(-20, 20))
+                {
+                    offsets.Add(new Vector2(xOffset * offsetValue, yOffset * offsetValue));
+                }
+            }
+
+            bool targeted = false;
 
             HoverTo(entity);
 
-            bool targeted = false;
-            int iteration = 0;
-            int maxIterations = 20;
-
-            while (iteration < maxIterations)
+            while (offsets.Any())
             {
                 if (entity.GetComponent<Targetable>().isTargeted)
                 {
@@ -332,9 +486,11 @@ namespace FollowerV2
                     break;
                 }
 
-                HoverTo(entity, 0, -yOffset * iteration);
+                int elem = rnd.Next(offsets.Count);
+                Vector2 offset = offsets[elem];
+                offsets.Remove(offset);
 
-                iteration++;
+                HoverTo(entity, (int)offset.X, (int)offset.Y);
                 Thread.Sleep(50);
             }
 
@@ -353,6 +509,18 @@ namespace FollowerV2
         }
 
         #region TreeSharp Related
+
+        private bool ShouldPickupNormalItem()
+        {
+            return _followerState.LastTimeNormalItemPickupDateTime != _emptyDateTime &&
+                   _followerState.LastTimeNormalItemPickupDateTime != _followerState.SavedLastTimeNormalItemPickupDateTime;
+        }
+
+        private bool ShouldPickupQuestItem()
+        {
+            return _followerState.LastTimeQuestItemPickupDateTime != _emptyDateTime &&
+                   _followerState.LastTimeQuestItemPickupDateTime != _followerState.SavedLastTimeQuestItemPickupDateTime;
+        }
 
         private bool ShouldUseEntrance()
         {
@@ -373,23 +541,23 @@ namespace FollowerV2
 
         private bool ShouldFollowLeader()
         {
-            LogMsgWithVerboseDebug($"{nameof(ShouldFollowLeader)} called");
+            //LogMsgWithVerboseDebug($"{nameof(ShouldFollowLeader)} called");
 
             bool leaderNotEmpty = !string.IsNullOrEmpty(Settings.FollowerModeSettings.LeaderName.Value);
             Entity leaderEntity = GetLeaderEntity();
             if (leaderEntity == null) return leaderNotEmpty;
 
             var distance = leaderEntity.Distance(GameController.Player);
-            LogMsgWithVerboseDebug($"  distance: {distance}");
-            LogMsgWithVerboseDebug($"  proximity: {Settings.FollowerModeSettings.LeaderProximityRadius.Value}");
+            //LogMsgWithVerboseDebug($"  distance: {distance}");
+            //LogMsgWithVerboseDebug($"  proximity: {Settings.FollowerModeSettings.LeaderProximityRadius.Value}");
             bool outsideBorders = distance > Settings.FollowerModeSettings.LeaderProximityRadius.Value;
 
             return leaderNotEmpty && outsideBorders;
         }
 
-        private bool CanTick()
+        private bool BtCanTick()
         {
-            //LogMsgWithVerboseDebug($"{nameof(CanTick)} called");
+            //LogMsgWithVerboseDebug($"{nameof(BtCanTick)} called");
 
             if (GameController.IsLoading)
             {
@@ -413,7 +581,7 @@ namespace FollowerV2
                 return false;
             }
 
-            //LogMsgWithVerboseDebug("    CanTick returning true");
+            //LogMsgWithVerboseDebug("    BtCanTick returning true");
 
             return true;
         }
@@ -461,44 +629,6 @@ namespace FollowerV2
                 treeRoot.Start(null);
             }
         }
-
-        //private void TickTree(Composite treeRoot)
-        //{
-        //    try
-        //    {
-        //        if (!Settings.Enable)
-        //            return;
-
-        //        if (treeRoot == null)
-        //        {
-        //            LogError("Plugin is not initialized");
-        //            return;
-        //        }
-
-        //        if (treeRoot.LastStatus != null)
-        //        {
-        //            treeRoot.Tick(null);
-
-        //            // If the last status wasn't running, stop the tree, and restart it.
-        //            if (treeRoot.LastStatus != RunStatus.Running)
-        //            {
-        //                //LogMsgWithVerboseDebug("Stopping and restarting the tree in TickTree");
-        //                treeRoot.Stop(null);
-        //                treeRoot.Start(null);
-        //            }
-        //        }
-        //        else
-        //        {
-        //            treeRoot.Start(null);
-        //            RunStatus status = treeRoot.Tick(null);
-        //        }
-        //    }
-        //    catch (Exception e)
-        //    {
-        //        LogError($"{Name}: Exception! \nMessage: {e.Message} \n{e.StackTrace}", 30);
-        //        throw e;
-        //    }
-        //}
 
         private void OnProfileChange(string profile)
         {
@@ -689,27 +819,34 @@ namespace FollowerV2
         {
             string leaderName = Settings.FollowerModeSettings.LeaderName.Value;
 
-            return GameController.Entities
-                .ToList() // Solves "Collection was modified; enumeration operation may not execute"
-                .Where(x => x.Type == EntityType.Player)
-                .FirstOrDefault(x => x.GetComponent<Player>().PlayerName == leaderName);
+            try
+            {
+                return GameController.Entities
+                    .Where(x => x.Type == EntityType.Player)
+                    .FirstOrDefault(x => x.GetComponent<Player>().PlayerName == leaderName);
+            }
+            // Sometimes we can get "Collection was modified; enumeration operation may not execute" exception
+            catch (Exception e)
+            {
+                return null;
+            }
         }
 
         private void HoverTo(Entity entity, int xOffset = 0, int yOffset = 0)
         {
-            LogMsgWithVerboseDebug("HoverTo called");
+            //LogMsgWithVerboseDebug("HoverTo called");
 
             if (entity == null) return;
 
-            var worldCoords = entity.Pos;
             Camera camera = GameController.Game.IngameState.Camera;
+            Vector2 windowOffset = GameController.Window.GetWindowRectangle().TopLeft;
 
-            var result = camera.WorldToScreen(worldCoords);
+            var result = camera.WorldToScreen(entity.Pos);
 
             var randomXOffset = new Random().Next(0, Settings.RandomClickOffset.Value);
             var randomYOffset = new Random().Next(0, Settings.RandomClickOffset.Value);
 
-            Vector2 finalPos = new Vector2(result.X + randomXOffset + xOffset, result.Y + randomYOffset + yOffset);
+            Vector2 finalPos = new Vector2(result.X + randomXOffset + xOffset + windowOffset.X, result.Y + randomYOffset + yOffset + windowOffset.Y);
 
             Mouse.MoveCursorToPosition(finalPos);
         }
@@ -798,6 +935,10 @@ namespace FollowerV2
 
             _followerState.LastTimeEntranceUsedDateTime = follower.LastTimeEntranceUsedDateTime;
             _followerState.LastTimePortalUsedDateTime = follower.LastTimePortalUsedDateTime;
+            _followerState.LastTimeQuestItemPickupDateTime = follower.LastTimeQuestItemPickupDateTime;
+            _followerState.LastTimeNormalItemPickupDateTime = follower.LastTimeNormalItemPickupDateTime;
+            _followerState.LastTimeNormalItemPickupDateTime = follower.LastTimeNormalItemPickupDateTime;
+            _followerState.NormalItemId = follower.NormalItemId;
         }
 
         private void StartNetworkRequestingPressed()
@@ -867,29 +1008,48 @@ namespace FollowerV2
             }
             ImGui.Spacing();
 
+            int userNumber = 1;
+
             foreach (var follower in Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet)
             {
-                ImGui.TextUnformatted($"User: {follower.FollowerName}:");
+                ImGui.TextUnformatted($"User {userNumber}: {follower.FollowerName}:");
                 ImGui.SameLine();
                 if (follower.LastTimeEntranceUsedDateTime != emptyDateTime)
                 {
                     ImGui.TextUnformatted("E");
                     ImGui.SameLine();
                 }
-
                 if (follower.LastTimePortalUsedDateTime != emptyDateTime)
                 {
                     ImGui.TextUnformatted(" P");
                     ImGui.SameLine();
                 }
+                if (follower.LastTimeQuestItemPickupDateTime != emptyDateTime)
+                {
+                    ImGui.TextUnformatted(" Q");
+                    ImGui.SameLine();
+                }
+                if (follower.LastTimeNormalItemPickupDateTime != emptyDateTime)
+                {
+                    ImGui.TextUnformatted(" I");
+                    ImGui.SameLine();
+                }
 
-                if (ImGui.Button($"Entrance##{follower.FollowerName}")) follower.SetToUseEntrance();
+                if (ImGui.Button($"E##{follower.FollowerName}")) follower.SetToUseEntrance();
 
                 ImGui.SameLine();
-                if (ImGui.Button($"Portal##{follower.FollowerName}")) follower.SetToUsePortal();
+                if (ImGui.Button($"P##{follower.FollowerName}")) follower.SetToUsePortal();
+
+                ImGui.SameLine();
+                if (ImGui.Button($"QIPick##{follower.FollowerName}")) follower.SetPickupQuestItem();
 
                 ImGui.SameLine();
                 if (ImGui.Button($"Del##{follower.FollowerName}")) Settings.LeaderModeSettings.FollowerCommandSetting.RemoveFollower(follower.FollowerName);
+
+                ImGui.SameLine();
+                ImGui.TextUnformatted($"I: Ctrl+{userNumber}");
+
+                userNumber++;
             }
             ImGui.Spacing();
 
@@ -901,6 +1061,8 @@ namespace FollowerV2
             if (ImGui.Button("Entrance##AllEntrance")) followers.ForEach(f => f.SetToUseEntrance());
             ImGui.SameLine();
             if (ImGui.Button("Portal##AllPortal")) followers.ForEach(f => f.SetToUsePortal());
+            ImGui.SameLine();
+            if (ImGui.Button("PickQuestItem##AllPickQuestItem")) followers.ForEach(f => f.SetPickupQuestItem());
             ImGui.Spacing();
 
             ImGui.Spacing();

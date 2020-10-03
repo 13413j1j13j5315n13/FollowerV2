@@ -11,7 +11,7 @@ namespace FollowerV2
     public class FollowerCommandSetting
     {
         // Must be public for JSON's "SerializeObject" to work
-        public HashSet<FollowerCommandsDataClass> FollowerCommandsDataSet = new HashSet<FollowerCommandsDataClass>();
+        public List<FollowerCommandsDataClass> FollowerCommandsDataSet = new List<FollowerCommandsDataClass>();
 
         public void AddNewFollower(string followerName)
         {
@@ -56,6 +56,12 @@ namespace FollowerV2
 
         public DateTime LastTimePortalUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
+        public DateTime LastTimeQuestItemPickupDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public DateTime LastTimeNormalItemPickupDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public int NormalItemId = 0;
+
         public FollowerCommandsDataClass() { }
 
         public FollowerCommandsDataClass(string followerName)
@@ -77,6 +83,27 @@ namespace FollowerV2
 
             this.LastTimePortalUsedDateTime = DateTime.UtcNow;
             Task.Delay(_taskDelayMs).ContinueWith(t => LastTimePortalUsedDateTime = _emptyDateTime);
+        }
+
+        public void SetPickupQuestItem()
+        {
+            if (this.LastTimeQuestItemPickupDateTime != _emptyDateTime) return;
+
+            this.LastTimeQuestItemPickupDateTime = DateTime.UtcNow;
+            Task.Delay(_taskDelayMs).ContinueWith(t => LastTimeQuestItemPickupDateTime = _emptyDateTime);
+        }
+
+        public void SetPickupNormalItem(int itemId)
+        {
+            if (this.LastTimeNormalItemPickupDateTime != _emptyDateTime) return;
+
+            this.LastTimeNormalItemPickupDateTime = DateTime.UtcNow;
+            this.NormalItemId = itemId;
+            Task.Delay(_taskDelayMs).ContinueWith(t =>
+            {
+                LastTimeNormalItemPickupDateTime = _emptyDateTime;
+                NormalItemId = itemId;
+            });
         }
     }
 }
