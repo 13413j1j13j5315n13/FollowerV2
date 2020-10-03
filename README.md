@@ -55,6 +55,7 @@ For controlling entering entrances, portal, or clicking on items on leader side 
 1. Enter slave's name or if the follower is nearby select it from select dropdown
 1. Click "Set selected value"
 1. Click "Add new slave"
+1. New follower will be added to the additional ImGui "FollowerV2" window (hold Ctrl to display)
 
 This will add the slave's name to the additional ImGui box. Now you can control that follower.
 
@@ -69,7 +70,7 @@ Using on Follower side:
 
 "Propagate working of followers" controls whether followers are working or not.
 
-Additional ImGui window controls:
+Additional ImGui window controls (hold Ctrl to display):
 1. "Locked" or "Unlocked" allows dragging the window"
 1. "Restricting resizing" or "Allowing resize" allows resizing of the window
 1. "User X: _NAME_": 

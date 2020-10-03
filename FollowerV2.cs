@@ -139,7 +139,7 @@ namespace FollowerV2
                 _delayHelper.CallFunction(nameof(StartNetworkRequestingPressed));
             }
 
-            if (Settings.FollowerCommandsImguiSettings.ShowWindow.Value && Settings.Profiles.Value == ProfilesEnum.Leader)
+            if (Input.GetKeyState(Keys.ControlKey) && Settings.Profiles.Value == ProfilesEnum.Leader && Settings.FollowerCommandsImguiSettings.ShowWindow.Value)
             {
                 RenderFollowerCommandImgui();
             }
@@ -287,7 +287,17 @@ namespace FollowerV2
                     new TreeRoutine.TreeSharp.Action(x =>
                     {
                         IEnumerable<Entity> players = GameController.Entities.Where(e => e.Type == EntityType.Player);
-                        Entity leaderPlayer = players.FirstOrDefault(e => e.GetComponent<Player>().PlayerName == Settings.FollowerModeSettings.LeaderName.Value);
+                        Entity leaderPlayer;
+                        try
+                        {
+                            leaderPlayer = players.FirstOrDefault(e =>
+                                e.GetComponent<Player>().PlayerName == Settings.FollowerModeSettings.LeaderName.Value);
+                        }
+                        // Sometimes we can get "Collection was modified; enumeration operation may not execute" exception
+                        catch (Exception e)
+                        {
+                            return;
+                        }
 
                         //LogMsgWithVerboseDebug($"leaderPlayer: {leaderPlayer}");
 
