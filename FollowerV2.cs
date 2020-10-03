@@ -1068,10 +1068,5 @@ namespace FollowerV2
             ImGui.Spacing();
             ImGui.End();
         }
-
-        private void RenderFollowerCommands(string name, Action useWaypoint, Action useEntrace, Action usePortal)
-        {
-
-        }
     }
 }
