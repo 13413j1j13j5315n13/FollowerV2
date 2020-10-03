@@ -1,5 +1,7 @@
 ## Intro
 
+A follower plugin for ExileApi (PoeHUD).
+
 I want to introduce something I have been working on lately and using since Heist league start.
 The purpose of this plugin is to enable your other characters to follow your leader. Useful for purposes such as:
 1. Leveling many characters at the same time. Personally I leveled a summoner alone and then using Player Scaling leveled 7 characters to 70+ (5 chars + summoner and separately 2 chars + summoner).
