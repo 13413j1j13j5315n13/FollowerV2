@@ -60,6 +60,7 @@ For controlling entering entrances, portal, or clicking on items on leader side 
 This will add the slave's name to the additional ImGui box. Now you can control that follower.
 
 Using on Follower side:
+1. Assign "Move" to "T" hotkey!
 1. Set the profile as "Follower"
 1. Click "Follower mode settings"
 1. Set mode as "network"
