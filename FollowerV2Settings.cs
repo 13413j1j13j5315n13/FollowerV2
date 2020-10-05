@@ -168,12 +168,14 @@ namespace FollowerV2
 
                         if (NearbyPlayers.Values.Any())
                         {
-                            NearbyPlayers.Value = ImGuiExtension.ComboBox("Use party member as leader", NearbyPlayers.Value, NearbyPlayers.Values);
+                            NearbyPlayers.Value = ImGuiExtension.ComboBox("Use nearby member as leader", NearbyPlayers.Value, NearbyPlayers.Values);
                             if (!String.IsNullOrEmpty(NearbyPlayers.Value))
                             {
                                 if (ImGui.Button("Set as selected as leader")) FollowerModeSettings.UseNearbyPlayerAsLeaderButton.OnPressed();
                             }
                         }
+
+                        FollowerModeSettings.FollowerShouldWork.Value = ImGuiExtension.Checkbox("Start follower", FollowerModeSettings.FollowerShouldWork);
 
                         // TODO: Implement this later
                         //FollowerModeSettings.FollowerUseCombat.Value = ImGuiExtension.Checkbox("Use Combat", FollowerModeSettings.FollowerUseCombat);
@@ -307,7 +309,7 @@ namespace FollowerV2
     {
         public EmptyNode EmptyFollower { get; set; } = new EmptyNode();
 
-        public bool FollowerShouldWork { get; set; } = false;
+        public ToggleNode FollowerShouldWork { get; set; } = new ToggleNode(false);
 
         public TextNode LeaderName { get; set; } = new TextNode("");
         public ToggleNode FollowerUseCombat { get; set; } = new ToggleNode(false);

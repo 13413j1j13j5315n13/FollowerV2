@@ -166,12 +166,15 @@ namespace FollowerV2
             firstLine = Graphics.DrawText($"FollowerMode: {Settings.FollowerModeSettings.FollowerModes.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
             startDrawPoint.Y += firstLine.Y;
 
-            if (isFollowerProfile && isNetworkMode)
+            if (isFollowerProfile)
             {
-                firstLine = Graphics.DrawText($"Network requesting: {Settings.FollowerModeSettings.StartNetworkRequesting.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
-                startDrawPoint.Y += firstLine.Y;
+                if (isNetworkMode)
+                {
+                    firstLine = Graphics.DrawText($"Network requesting: {Settings.FollowerModeSettings.StartNetworkRequesting.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+                    startDrawPoint.Y += firstLine.Y;
+                }
 
-                firstLine = Graphics.DrawText($"Follower working: {Settings.FollowerModeSettings.FollowerShouldWork}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+                firstLine = Graphics.DrawText($"Follower working: {Settings.FollowerModeSettings.FollowerShouldWork.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
                 startDrawPoint.Y += firstLine.Y;
             }
 
@@ -607,9 +610,9 @@ namespace FollowerV2
 
             if (Settings.Profiles.Value == ProfilesEnum.Follower)
             {
-                //LogMsgWithVerboseDebug($"    returning {Settings.FollowerModeSettings.FollowerShouldWork}");
+                //LogMsgWithVerboseDebug($"    returning {Settings.FollowerModeSettings.FollowerShouldWork.Value}");
 
-                return Settings.FollowerModeSettings.FollowerShouldWork;
+                return Settings.FollowerModeSettings.FollowerShouldWork.Value;
             }
 
             //LogMsgWithVerboseDebug("    returning false");
@@ -732,7 +735,7 @@ namespace FollowerV2
         private void OnStartNetworkRequestingValueChanged(object obj, bool value)
         {
             LogMsgWithVerboseDebug("OnStartNetworkRequestingValueChanged called");
-            if (!value) Settings.FollowerModeSettings.FollowerShouldWork = false;
+            if (!value) Settings.FollowerModeSettings.FollowerShouldWork.Value = false;
         }
 
         private IEnumerator MainNetworkRequestsWork()
@@ -934,7 +937,7 @@ namespace FollowerV2
                 return;
             }
 
-            Settings.FollowerModeSettings.FollowerShouldWork = obj.FollowersShouldWork;
+            Settings.FollowerModeSettings.FollowerShouldWork.Value = obj.FollowersShouldWork;
             Settings.FollowerModeSettings.LeaderName.Value = obj.LeaderName;
             Settings.FollowerModeSettings.LeaderProximityRadius.Value = obj.LeaderProximityRadius;
 
