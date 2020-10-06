@@ -17,6 +17,8 @@ namespace FollowerV2
         {
             if (string.IsNullOrEmpty(followerName)) return;
 
+            followerName = followerName.Trim();
+
             bool contains = FollowerCommandsDataSet.Select(a => a.FollowerName == followerName).FirstOrDefault();
             if (contains) return;
 
@@ -30,16 +32,6 @@ namespace FollowerV2
 
             FollowerCommandsDataClass follower = FollowerCommandsDataSet.First(a => a.FollowerName == followerName);
             FollowerCommandsDataSet.Remove(follower);
-        }
-
-        public List<string> GetNames()
-        {
-            return FollowerCommandsDataSet.Select(a => a.FollowerName).ToList();
-        }
-
-        private FollowerCommandsDataClass GetFollowerByName(string followerName)
-        {
-            return FollowerCommandsDataSet.First(a => a.FollowerName == followerName);
         }
     }
 
@@ -61,6 +53,8 @@ namespace FollowerV2
         public DateTime LastTimeNormalItemPickupDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         public int NormalItemId = 0;
+
+        public List<FollowerSkill> FollowerSkills = new List<FollowerSkill>();
 
         public FollowerCommandsDataClass() { }
 
@@ -104,6 +98,17 @@ namespace FollowerV2
                 LastTimeNormalItemPickupDateTime = _emptyDateTime;
                 NormalItemId = itemId;
             });
+        }
+
+        public void AddNewEmptySkill()
+        {
+            int id = new Random().Next(0, 100);
+            FollowerSkills.Add(new FollowerSkill(id));
+        }
+
+        public void RemoveSkill(int skillId)
+        {
+            FollowerSkills.RemoveAll(s => s.Id == skillId);
         }
     }
 }

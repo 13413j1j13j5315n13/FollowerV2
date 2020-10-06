@@ -141,7 +141,7 @@ namespace FollowerV2
 
             if (Input.GetKeyState(Keys.ControlKey) && Settings.Profiles.Value == ProfilesEnum.Leader && Settings.FollowerCommandsImguiSettings.ShowWindow.Value)
             {
-                RenderFollowerCommandImgui();
+                RenderAdditionalFollowerCommandImguiWindow();
             }
 
             WriteLeftPanelTexts();
@@ -1072,7 +1072,7 @@ namespace FollowerV2
             Working,
         }
 
-        private void RenderFollowerCommandImgui()
+        private void RenderAdditionalFollowerCommandImguiWindow()
         {
             DateTime emptyDateTime = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
