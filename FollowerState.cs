@@ -31,15 +31,11 @@ namespace FollowerV2
         public Vector3 SavedCurrentPos = Vector3.Zero;
         public uint SavedCurrentAreaHash = 0;
 
-        public void ResetEntranceLogicValues()
+        public void ResetAreaChangingValues()
         {
             EntranceLogicIterationCount = 0;
             SavedCurrentPos = Vector3.Zero;
             SavedCurrentAreaHash = 0;
-        }
-
-        public void ResetPortalLogicValues()
-        {
             PortalLogicIterationCount = 0;
         }
     }

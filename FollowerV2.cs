@@ -272,8 +272,8 @@ namespace FollowerV2
                 new PrioritySelector(
                     CreatePickingTargetedItemComposite(),
                     CreatePickingQuestItemComposite(),
-                    CreateUsingPortalCompositeV2(),
-                    CreateUsingEntranceCompositeV2(),
+                    CreateUsingPortalComposite(),
+                    CreateUsingEntranceComposite(),
 
                     // Following has the lowest priority
                     CreateFollowingComposite()
@@ -407,9 +407,9 @@ namespace FollowerV2
             );
         }
 
-        private Composite CreateUsingPortalCompositeV2()
+        private Composite CreateUsingPortalComposite()
         {
-            LogMsgWithVerboseDebug($"{nameof(CreateUsingPortalCompositeV2)} called");
+            LogMsgWithVerboseDebug($"{nameof(CreateUsingPortalComposite)} called");
             return new Decorator(x => _followerState.CurrentAction == ActionsEnum.UsingPortal,
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
@@ -422,7 +422,7 @@ namespace FollowerV2
                         if (_followerState.PortalLogicIterationCount > 3)
                         {
                             _followerState.CurrentAction = ActionsEnum.Nothing;
-                            _followerState.ResetPortalLogicValues();
+                            _followerState.ResetAreaChangingValues();
 
                             return TreeRoutine.TreeSharp.RunStatus.Failure;
                         }
@@ -459,7 +459,7 @@ namespace FollowerV2
                         {
                             // We have changed the area
                             _followerState.CurrentAction = ActionsEnum.Nothing;
-                            _followerState.ResetPortalLogicValues();
+                            _followerState.ResetAreaChangingValues();
                         }
 
                         return TreeRoutine.TreeSharp.RunStatus.Success;
@@ -468,9 +468,9 @@ namespace FollowerV2
             );
         }
 
-        private Composite CreateUsingEntranceCompositeV2()
+        private Composite CreateUsingEntranceComposite()
         {
-            LogMsgWithVerboseDebug($"{nameof(CreateUsingEntranceCompositeV2)} called");
+            LogMsgWithVerboseDebug($"{nameof(CreateUsingEntranceComposite)} called");
             return new Decorator(x => _followerState.CurrentAction == ActionsEnum.UsingEntrance,
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
@@ -483,7 +483,7 @@ namespace FollowerV2
                         if (_followerState.EntranceLogicIterationCount > 3)
                         {
                             _followerState.CurrentAction = ActionsEnum.Nothing;
-                            _followerState.ResetEntranceLogicValues();
+                            _followerState.ResetAreaChangingValues();
 
                             return TreeRoutine.TreeSharp.RunStatus.Failure;
                         }
@@ -521,7 +521,7 @@ namespace FollowerV2
                         {
                             // We have changed the area
                             _followerState.CurrentAction = ActionsEnum.Nothing;
-                            _followerState.ResetEntranceLogicValues();
+                            _followerState.ResetAreaChangingValues();
                         }
                         
                         return TreeRoutine.TreeSharp.RunStatus.Success;
