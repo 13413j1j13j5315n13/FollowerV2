@@ -272,8 +272,8 @@ namespace FollowerV2
                 new PrioritySelector(
                     CreatePickingTargetedItemComposite(),
                     CreatePickingQuestItemComposite(),
-                    CreateUsingPortalCompositeV2(),
-                    CreateUsingEntranceCompositeV2(),
+                    CreateUsingPortalComposite(),
+                    CreateUsingEntranceComposite(),
 
                     // Following has the lowest priority
                     CreateFollowingComposite()
@@ -407,9 +407,9 @@ namespace FollowerV2
             );
         }
 
-        private Composite CreateUsingPortalCompositeV2()
+        private Composite CreateUsingPortalComposite()
         {
-            LogMsgWithVerboseDebug($"{nameof(CreateUsingPortalCompositeV2)} called");
+            LogMsgWithVerboseDebug($"{nameof(CreateUsingPortalComposite)} called");
             return new Decorator(x => _followerState.CurrentAction == ActionsEnum.UsingPortal,
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
@@ -421,10 +421,15 @@ namespace FollowerV2
                         // Allow only 3 portal logic iterations
                         if (_followerState.PortalLogicIterationCount > 3)
                         {
-                            _followerState.PortalLogicIterationCount = 0;
                             _followerState.CurrentAction = ActionsEnum.Nothing;
+                            _followerState.ResetAreaChangingValues();
 
                             return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        }
+
+                        if (_followerState.SavedCurrentPos == Vector3.Zero || _followerState.SavedCurrentAreaHash == 0)
+                        {
+                            _followerState.SavedCurrentAreaHash = GameController.IngameState.Data.CurrentAreaHash;
                         }
 
                         Entity portalEntity = GetEntitiesByEntityTypeAndSortByDistance(EntityType.TownPortal, GameController.Player).FirstOrDefault();
@@ -443,8 +448,19 @@ namespace FollowerV2
                         Mouse.LeftClick(10);
                         Thread.Sleep(2000);
 
-                        _followerState.PortalLogicIterationCount = 0;
-                        _followerState.CurrentAction = ActionsEnum.Nothing;
+                        // Wait additionally up to 2 seconds for IsLoading to pop up
+                        foreach (var i in Enumerable.Range(0, 20))
+                        {
+                            if (GameController.IsLoading) break;
+                            Thread.Sleep(100);
+                        }
+
+                        if (GameController.IsLoading || HasAreaBeenChangedByAreaHash())
+                        {
+                            // We have changed the area
+                            _followerState.CurrentAction = ActionsEnum.Nothing;
+                            _followerState.ResetAreaChangingValues();
+                        }
 
                         return TreeRoutine.TreeSharp.RunStatus.Success;
                     })
@@ -452,9 +468,9 @@ namespace FollowerV2
             );
         }
 
-        private Composite CreateUsingEntranceCompositeV2()
+        private Composite CreateUsingEntranceComposite()
         {
-            LogMsgWithVerboseDebug($"{nameof(CreateUsingEntranceCompositeV2)} called");
+            LogMsgWithVerboseDebug($"{nameof(CreateUsingEntranceComposite)} called");
             return new Decorator(x => _followerState.CurrentAction == ActionsEnum.UsingEntrance,
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
@@ -466,16 +482,22 @@ namespace FollowerV2
                         // Allow only 3 entrance logic iterations
                         if (_followerState.EntranceLogicIterationCount > 3)
                         {
-                            _followerState.EntranceLogicIterationCount = 0;
                             _followerState.CurrentAction = ActionsEnum.Nothing;
+                            _followerState.ResetAreaChangingValues();
 
                             return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        }
+
+                        if (_followerState.SavedCurrentPos == Vector3.Zero || _followerState.SavedCurrentAreaHash == 0)
+                        {
+                            _followerState.SavedCurrentPos = GameController.Player.Pos;
+                            _followerState.SavedCurrentAreaHash = GameController.IngameState.Data.CurrentAreaHash;
                         }
 
                         Entity entranceEntity = GetEntitiesByEntityTypeAndSortByDistance(EntityType.AreaTransition, GameController.Player).FirstOrDefault();
                         if (entranceEntity == null) return TreeRoutine.TreeSharp.RunStatus.Failure;
 
-                        // If portal entity is too far away stop the whole logic
+                        // If entrance entity is too far away stop the whole logic
                         if (entranceEntity.Distance(GameController.Player) > 70)
                         {
                             return TreeRoutine.TreeSharp.RunStatus.Failure;
@@ -488,9 +510,20 @@ namespace FollowerV2
                         Mouse.LeftClick(10);
                         Thread.Sleep(2000);
 
-                        _followerState.EntranceLogicIterationCount = 0;
-                        _followerState.CurrentAction = ActionsEnum.Nothing;
+                        // Wait additionally up to 2 seconds for IsLoading to pop up
+                        foreach (var i in Enumerable.Range(0, 20))
+                        {
+                            if (GameController.IsLoading) break;
+                            Thread.Sleep(100);
+                        }
 
+                        if (GameController.IsLoading || HasAreaBeenChangedByAreaHash() || HasAreaBeenChangedBySavedPos())
+                        {
+                            // We have changed the area
+                            _followerState.CurrentAction = ActionsEnum.Nothing;
+                            _followerState.ResetAreaChangingValues();
+                        }
+                        
                         return TreeRoutine.TreeSharp.RunStatus.Success;
                     })
                 )
@@ -556,6 +589,26 @@ namespace FollowerV2
             return isEntityPresent;
         }
 
+        private bool HasAreaBeenChangedByAreaHash()
+        {
+            if (_followerState.SavedCurrentAreaHash == 0) return false;
+
+            return _followerState.SavedCurrentAreaHash != GameController.IngameState.Data.CurrentAreaHash;
+        }
+
+        private bool HasAreaBeenChangedBySavedPos()
+        {
+            if (_followerState.SavedCurrentPos == Vector3.Zero) return false;
+
+            // If X or Y value of the saved coordinates have changed more than the treshold it means we have changed the area
+            int posTreshold = 1200;
+
+            int xChange =  Math.Abs((int)_followerState.SavedCurrentPos.X - (int)GameController.Player.Pos.X);
+            int yChange =  Math.Abs((int)_followerState.SavedCurrentPos.Y - (int)GameController.Player.Pos.Y);
+
+            return xChange > posTreshold || yChange > posTreshold;
+        }
+
         private TreeRoutine.TreeSharp.Action SleepAction(int timeoutMs)
         {
             return new TreeRoutine.TreeSharp.Action(x =>
@@ -600,11 +653,6 @@ namespace FollowerV2
             //LogMsgWithVerboseDebug($"{nameof(BtCanTick)} called");
 
             if (GameController.IsLoading)
-            {
-                return false;
-            }
-
-            if (!GameController.Game.IngameState.ServerData.IsInGame)
             {
                 return false;
             }

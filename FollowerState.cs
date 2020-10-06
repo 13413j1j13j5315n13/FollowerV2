@@ -1,4 +1,5 @@
 ﻿using System;
+using SharpDX;
 
 namespace FollowerV2
 {
@@ -25,9 +26,18 @@ namespace FollowerV2
         public ActionsEnum CurrentAction = ActionsEnum.Nothing;
 
         public int PortalLogicIterationCount = 0;
+
         public int EntranceLogicIterationCount = 0;
+        public Vector3 SavedCurrentPos = Vector3.Zero;
+        public uint SavedCurrentAreaHash = 0;
 
-
+        public void ResetAreaChangingValues()
+        {
+            EntranceLogicIterationCount = 0;
+            SavedCurrentPos = Vector3.Zero;
+            SavedCurrentAreaHash = 0;
+            PortalLogicIterationCount = 0;
+        }
     }
 
     public enum ActionsEnum
