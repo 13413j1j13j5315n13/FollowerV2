@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using SharpDX;
 
 namespace FollowerV2
@@ -30,6 +31,8 @@ namespace FollowerV2
         public int EntranceLogicIterationCount = 0;
         public Vector3 SavedCurrentPos = Vector3.Zero;
         public uint SavedCurrentAreaHash = 0;
+
+        public List<FollowerSkill> FollowerSkills { get; set; } = new List<FollowerSkill>();
 
         public void ResetAreaChangingValues()
         {

@@ -37,7 +37,7 @@ namespace FollowerV2
             }
         }
 
-        public long GetDeltaInMilliseconds(DateTime lastTime)
+        public static long GetDeltaInMilliseconds(DateTime lastTime)
         {
             long currentMs = ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeMilliseconds();
             long lastTimeMs = ((DateTimeOffset)lastTime).ToUnixTimeMilliseconds();

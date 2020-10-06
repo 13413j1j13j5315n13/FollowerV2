@@ -302,17 +302,11 @@ namespace FollowerV2
                             return;
                         }
 
-                        //LogMsgWithVerboseDebug($"leaderPlayer: {leaderPlayer}");
-
                         if (leaderPlayer != null)
                         {
-                            //LogMsgWithVerboseDebug("Hovering and clicking on leader");
-
                             HoverTo(leaderPlayer);
 
-                            Input.KeyDown(Settings.FollowerModeSettings.MoveHotkey.Value);
-                            Thread.Sleep(5);
-                            Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
+                            DoMoveAction();
                         }
 
                         Thread.Sleep(Settings.FollowerModeSettings.MoveLogicCooldown.Value);
@@ -574,6 +568,27 @@ namespace FollowerV2
             Thread.Sleep(50);
 
             return targeted;
+        }
+
+        private void DoMoveAction()
+        {
+            // Either use a movement skill or just click MoveHotkey
+            Keys keyToUse = Settings.FollowerModeSettings.MoveHotkey.Value;
+
+            FollowerSkill availableMovementSkill = _followerState.FollowerSkills
+                .Where(s => s.IsMovingSkill)
+                .Where(s => s.Enable)
+                .FirstOrDefault(s => DelayHelper.GetDeltaInMilliseconds(s.LastTimeUsed) > s.CooldownMs);
+
+            if (availableMovementSkill != null)
+            {
+                availableMovementSkill.LastTimeUsed = DateTime.UtcNow;
+                keyToUse = availableMovementSkill.Hotkey;
+            }
+
+            Input.KeyDown(keyToUse);
+            Thread.Sleep(5);
+            Input.KeyUp(keyToUse);
         }
 
         private bool IsEntityPresent(uint entityId)
@@ -929,12 +944,48 @@ namespace FollowerV2
             Camera camera = GameController.Game.IngameState.Camera;
             Vector2 windowOffset = GameController.Window.GetWindowRectangle().TopLeft;
 
-            var result = camera.WorldToScreen(entity.Pos);
+            Vector2 result = camera.WorldToScreen(entity.Pos);
 
-            var randomXOffset = new Random().Next(0, Settings.RandomClickOffset.Value);
-            var randomYOffset = new Random().Next(0, Settings.RandomClickOffset.Value);
+            int randomXOffset = new Random().Next(0, Settings.RandomClickOffset.Value);
+            int randomYOffset = new Random().Next(0, Settings.RandomClickOffset.Value);
 
-            Vector2 finalPos = new Vector2(result.X + randomXOffset + xOffset + windowOffset.X, result.Y + randomYOffset + yOffset + windowOffset.Y);
+            Vector2 finalPos = new Vector2(
+                result.X + randomXOffset + xOffset + windowOffset.X, 
+                result.Y + randomYOffset + yOffset + windowOffset.Y);
+
+            bool intersects = GameController.Window.GetWindowRectangleTimeCache.Intersects(new RectangleF(finalPos.X, finalPos.Y, 3, 3));
+            // The entity is inside the game window and visible, we can just hover
+            if (intersects)
+            {
+                Mouse.SetCursorPosHuman2(finalPos);
+                return;
+            }
+
+            // The entity is outside of the visibility. Make some calculations to click within the game window borders
+            int smallOffset = 5;
+
+            float topLeftX = GameController.Window.GetWindowRectangle().TopLeft.X;
+            float topLeftY = GameController.Window.GetWindowRectangle().TopLeft.Y;
+            float bottomRightX = GameController.Window.GetWindowRectangle().BottomRight.X;
+            float bottomRightY = GameController.Window.GetWindowRectangle().BottomRight.Y;
+
+            if (finalPos.X < topLeftX)
+            {
+                finalPos.X = topLeftX + smallOffset;
+            }
+            if (finalPos.Y < topLeftY)
+            {
+                finalPos.Y = topLeftY + smallOffset;
+            }
+            if (finalPos.X > bottomRightX)
+            {
+                finalPos.X = bottomRightX - smallOffset;
+            }
+
+            if (finalPos.Y > bottomRightY)
+            {
+                finalPos.Y = bottomRightY - smallOffset;
+            }
 
             Mouse.SetCursorPosHuman2(finalPos);
         }
@@ -1040,6 +1091,28 @@ namespace FollowerV2
                 _followerState.CurrentAction = ActionsEnum.UsingEntrance;
             }
 
+            // We want to replace values but we don't want to replace the object reference because of LastTimeUsed
+            follower.FollowerSkills.ForEach(skill =>
+            {
+                FollowerSkill localFollowerSkill = _followerState.FollowerSkills.Find(s => s.Id == skill.Id);
+                if (localFollowerSkill == null)
+                {
+                    _followerState.FollowerSkills.Add(skill);
+                    return;
+                }
+
+                localFollowerSkill.OverwriteValues(skill);
+            });
+
+            var localIds = _followerState.FollowerSkills.Select(s => s.Id);
+            var remoteIds = follower.FollowerSkills.Select(s => s.Id);
+
+            // Remove all local skills which are not present in the parsed JSON response
+            localIds
+                .Where(id => !remoteIds.Contains(id))
+                .Select(id => _followerState.FollowerSkills.Find(s => s.Id == id))
+                .ToList()
+                .ForEach(skill => _followerState.FollowerSkills.RemoveAll(s => s.Id == skill.Id));
         }
 
         private void StartNetworkRequestingPressed()
