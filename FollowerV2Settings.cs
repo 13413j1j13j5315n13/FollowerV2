@@ -266,6 +266,52 @@ namespace FollowerV2
                             ImGui.Spacing();
                         }
 
+                        if (LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.Any())
+                        {
+                            foreach (var follower in LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet)
+                            {
+                                if (ImGui.TreeNodeEx($"Follower \"{follower.FollowerName}\" skill settings##{follower.FollowerName}"))
+                                {
+                                    if (ImGui.Button($"Add new skill##{follower.FollowerName}")) follower.AddNewEmptySkill();
+                                    ImGui.Spacing();
+                                    ImGui.Spacing();
+
+                                    foreach (FollowerSkill skill in follower.FollowerSkills)
+                                    {
+                                        string imguiId = follower.FollowerName + skill.Id.ToString();
+                                        ImGui.TextDisabled($"------ Skill (id: {skill.Id}) ------");
+
+                                        skill.Enable = ImGuiExtension.Checkbox($"Enable##{imguiId}", skill.Enable);
+                                        ImGui.SameLine();
+                                        ImGui.TextDisabled("    ");
+                                        ImGui.SameLine();
+                                        if (ImGui.Button($"Remove##{imguiId}")) follower.RemoveSkill(skill.Id);
+
+                                        ImGui.Spacing();
+                                        skill.Hotkey = ImGuiExtension.HotkeySelector($"Hotkey: {skill.Hotkey}##{imguiId}", skill.Hotkey);
+                                        ImGui.Spacing();
+                                        ImGui.SliderInt($"Priority##{imguiId}", ref skill.Priority, 1, 5);
+                                        ImGui.Spacing();
+                                        skill.IsMovingSkill = ImGuiExtension.Checkbox($"Is moving skill##{imguiId}", skill.IsMovingSkill);
+                                        ImGui.Spacing();
+                                        ImGui.SliderInt($"Skill cooldown in ms##{imguiId}", ref skill.CooldownMs, 100, 10000);
+                                        ImGui.Spacing();
+
+                                        if (!skill.IsMovingSkill)
+                                        {
+                                            ImGui.SliderInt($"Max range to monsters##{imguiId}", ref skill.MaxRangeToMonsters, 10, 200);
+                                            ImGui.Spacing();
+                                        }
+                                    }
+
+                                    if (follower.FollowerSkills.Any()) ImGui.TextDisabled("-----------");
+
+                                    ImGui.Spacing();
+                                }
+                                
+                            }
+                        }
+                        
                         if (ImGui.TreeNodeEx("Advanced leader mode settings"))
                         {
                             ImGui.TextDisabled("Remember to restart the server if you have changed the port or the hostname");
@@ -376,5 +422,7 @@ namespace FollowerV2
         public ToggleNode LockPanel { get; set; } = new ToggleNode(false);
         public ToggleNode NoResize { get; set; } = new ToggleNode(false);
     }
+
+
 
 }

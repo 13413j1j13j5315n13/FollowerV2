@@ -47,27 +47,6 @@ namespace FollowerV2
 
             try
             {
-                // ASYNC WORKING SERVER
-                //IAsyncResult result = _httpListener.BeginGetContext(new AsyncCallback((IAsyncResult res) =>
-                //{
-                //    HttpListener list = (HttpListener)res.AsyncState;
-                //    HttpListenerContext context = list.EndGetContext(res);
-
-                //    HttpListenerRequest req = context.Request;
-                //    HttpListenerResponse response = context.Response;
-
-                //    string responseString = JsonConvert.SerializeObject(CreateNetworkActivityObject());
-
-                //    byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
-                //    response.ContentLength64 = buffer.Length;
-
-                //    System.IO.Stream output = response.OutputStream;
-                //    output.Write(buffer, 0, buffer.Length);
-                //    output.Close();
-
-                //}), _httpListener);
-                // ASYNC WORKING SERVER ENDS
-
                 // SYNC WORKING SERVER
                 HttpListenerContext context = _httpListener.GetContext();
                 HttpListenerRequest request = context.Request;
