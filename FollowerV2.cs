@@ -274,6 +274,7 @@ namespace FollowerV2
                     CreatePickingQuestItemComposite(),
                     CreateUsingPortalComposite(),
                     CreateUsingEntranceComposite(),
+                    CreateCombatComposite(),
 
                     // Following has the lowest priority
                     CreateFollowingComposite()
@@ -524,6 +525,53 @@ namespace FollowerV2
             );
         }
 
+        private Composite CreateCombatComposite()
+        {
+            LogMsgWithVerboseDebug($"{nameof(CreateCombatComposite)} called");
+
+            return new Decorator(x => ShouldAttackMonsters(),
+                new Sequence(
+                    new TreeRoutine.TreeSharp.Action(x =>
+                    {
+                        Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
+
+                        // Get first attack skill by priority
+                        FollowerSkill availableAttackSkill = GetFollowerAttackSkillsWithoutCooldown()
+                            .OrderBy(s => s.Priority)
+                            .FirstOrDefault();
+
+                        List<Entity> monsterEntities = GetMonsterEntities();
+
+                        if (availableAttackSkill == null || monsterEntities == null) return TreeRoutine.TreeSharp.RunStatus.Failure;
+
+                        Entity monster = monsterEntities.FirstOrDefault();
+
+                        HoverTo(monster);
+                        Thread.Sleep(20);
+
+                        Input.KeyDown(availableAttackSkill.Hotkey);
+                        Thread.Sleep(5);
+                        Input.KeyUp(availableAttackSkill.Hotkey);
+
+                        availableAttackSkill.LastTimeUsed = DateTime.UtcNow;
+
+                        Thread.Sleep(100);
+
+                        // Give 1 second max for animations to finish
+                        foreach (var i in Enumerable.Range(0, 10))
+                        {
+                            bool playerUsingAbility = GameController.Player.GetComponent<Actor>().Action == ActionFlags.UsingAbility;
+
+                            if (!playerUsingAbility) break;
+                            Thread.Sleep(100);
+                        }
+
+                        return TreeRoutine.TreeSharp.RunStatus.Success;
+                    })
+                )
+            );
+        }
+
         private bool HoverToEntityAction(Entity entity)
         {
             Random rnd = new Random();
@@ -634,6 +682,64 @@ namespace FollowerV2
         }
 
         #region TreeSharp Related
+
+        private bool ShouldAttackMonsters()
+        {
+            // Do we have attack skills without a cooldown?
+            List<FollowerSkill> availableAttackSkills = GetFollowerAttackSkillsWithoutCooldown();
+
+            if (!availableAttackSkills.Any()) return false;
+
+            // Are there monsters around?
+            List<Entity> monstersList = GetMonsterEntities();
+
+            if (monstersList == null || !monstersList.Any()) return false;
+
+            // Are monsters within any of the attack skill distances?
+            List<int> skillDistances = availableAttackSkills.Select(s => s.MaxRangeToMonsters).ToList();
+            List<int> monsterDistancesToPlayer = monstersList.Select(e => (int) e.DistancePlayer).ToList();
+            bool withinRange = false;
+
+            foreach (int monsterDistance in monsterDistancesToPlayer)
+            {
+                foreach (int skillDistance in skillDistances)
+                {
+                    if (monsterDistance <= skillDistance)
+                    {
+                        withinRange = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!withinRange) return false;
+
+            return true;
+        }
+
+        private List<Entity> GetMonsterEntities()
+        {
+            List<Entity> monstersList = null;
+            try
+            {
+                // try/catch is intentional to avoid ExileApi issue. DO NOT REMOVE
+                monstersList = GameController.Entities
+                    .Where(e => e.Type == EntityType.Monster)
+                    .Where(e => e.IsAlive && e.IsHostile && e.IsTargetable && e.IsValid)
+                    .ToList();
+            }
+            catch (Exception e) { }
+
+            return monstersList;
+        }
+
+        private List<FollowerSkill> GetFollowerAttackSkillsWithoutCooldown()
+        {
+            return _followerState.FollowerSkills
+                .Where(s => s.Enable && !s.IsMovingSkill)
+                .Where(s => DelayHelper.GetDeltaInMilliseconds(s.LastTimeUsed) > s.CooldownMs)
+                .ToList();
+        }
 
         private bool ShouldPickupNormalItem()
         {

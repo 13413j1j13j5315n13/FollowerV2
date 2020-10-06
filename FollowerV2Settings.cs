@@ -299,7 +299,7 @@ namespace FollowerV2
 
                                         if (!skill.IsMovingSkill)
                                         {
-                                            skill.MaxRangeToMonsters = ImGuiExtension.IntSlider($"Max range to monsters##{imguiId}", new RangeNode<int>(70, 10, 200));
+                                            ImGui.SliderInt($"Max range to monsters##{imguiId}", ref skill.MaxRangeToMonsters, 10, 200);
                                             ImGui.Spacing();
                                         }
                                     }
