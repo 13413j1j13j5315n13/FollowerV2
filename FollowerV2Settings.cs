@@ -1,16 +1,12 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading;
 using System.Windows.Forms;
 using ExileCore;
 using ExileCore.Shared.Interfaces;
 using ExileCore.Shared.Nodes;
 using ExileCore.Shared.Attributes;
 using ImGuiNET;
-using SharpDX;
 
 namespace FollowerV2
 {
