@@ -310,10 +310,12 @@ namespace FollowerV2
 
                             HoverTo(leaderPlayer);
 
-                            Input.KeyDown(Keys.T);
+                            Input.KeyDown(Settings.FollowerModeSettings.MoveHotkey.Value);
                             Thread.Sleep(5);
-                            Input.KeyUp(Keys.T);
+                            Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
                         }
+
+                        Thread.Sleep(Settings.FollowerModeSettings.MoveLogicCooldown.Value);
                     })
                 )
             );
@@ -327,7 +329,7 @@ namespace FollowerV2
                         {
                             LogMsgWithVerboseDebug("Picking quest item");
 
-                            Input.KeyUp(Keys.T);
+                            Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
 
                             _followerState.LastTimeQuestItemPickupDateTime = _emptyDateTime;
                             _followerState.SavedLastTimeQuestItemPickupDateTime = _emptyDateTime;
@@ -370,7 +372,7 @@ namespace FollowerV2
                     {
                         LogMsgWithVerboseDebug($"Picking targeted item with id {_followerState.NormalItemId}");
 
-                        Input.KeyUp(Keys.T);
+                        Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
 
                         _followerState.SavedLastTimeNormalItemPickupDateTime = _emptyDateTime;
                         _followerState.LastTimeNormalItemPickupDateTime = _followerState.LastTimeNormalItemPickupDateTime;
@@ -412,7 +414,7 @@ namespace FollowerV2
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
                     {
-                        Input.KeyUp(Keys.T);
+                        Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
 
                         _followerState.PortalLogicIterationCount++;
 
@@ -457,7 +459,7 @@ namespace FollowerV2
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
                     {
-                        Input.KeyUp(Keys.T);
+                        Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
 
                         _followerState.EntranceLogicIterationCount++;
 

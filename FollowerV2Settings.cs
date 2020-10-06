@@ -201,6 +201,12 @@ namespace FollowerV2
                         FollowerModeSettings.StartNetworkRequesting.Value = ImGuiExtension.Checkbox("Start network requesting", FollowerModeSettings.StartNetworkRequesting);
                         FollowerModeSettings.StartNetworkRequestingHotkey.Value = ImGuiExtension.HotkeySelector("Hotkey to start network requesting", FollowerModeSettings.StartNetworkRequestingHotkey);
                         ImGui.Spacing();
+                        ImGui.Spacing();
+                        ImGui.TextDisabled("The next hotkey will be used for moving. Follower will click it after hovering");
+                        FollowerModeSettings.MoveHotkey.Value = ImGuiExtension.HotkeySelector("Move hotkey", FollowerModeSettings.MoveHotkey);
+                        ImGui.Spacing();
+                        ImGui.TextDisabled("The delay to \"sleep\" between following logic iterations");
+                        FollowerModeSettings.MoveLogicCooldown.Value = ImGuiExtension.IntSlider("Following logic cooldown", FollowerModeSettings.MoveLogicCooldown);
                     }
 
                     ImGui.Spacing();
@@ -325,6 +331,8 @@ namespace FollowerV2
         public RangeNode<int> LeaderProximityRadius { get; set; } = new RangeNode<int>(100, 10, 300);
         public ToggleNode StartNetworkRequesting { get; set; } = new ToggleNode(false);
         public HotkeyNode StartNetworkRequestingHotkey { get; set; } = Keys.F3;
+        public HotkeyNode MoveHotkey { get; set; } = Keys.T;
+        public RangeNode<int> MoveLogicCooldown { get; set; } = new RangeNode<int>(50, 20, 300);
     }
 
     public class LeaderModeSetting
