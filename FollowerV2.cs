@@ -272,8 +272,8 @@ namespace FollowerV2
                 new PrioritySelector(
                     CreatePickingTargetedItemComposite(),
                     CreatePickingQuestItemComposite(),
-                    CreateUsingPortalComposite(),
-                    CreateUsingEntranceComposite(),
+                    CreateUsingPortalCompositeV2(),
+                    CreateUsingEntranceCompositeV2(),
 
                     // Following has the lowest priority
                     CreateFollowingComposite()
@@ -405,30 +405,44 @@ namespace FollowerV2
             );
         }
 
-        private Composite CreateUsingPortalComposite()
+        private Composite CreateUsingPortalCompositeV2()
         {
-            LogMsgWithVerboseDebug($"{nameof(CreateUsingPortalComposite)} called");
-
-            return new Decorator(x => ShouldUsePortal(),
+            LogMsgWithVerboseDebug($"{nameof(CreateUsingPortalCompositeV2)} called");
+            return new Decorator(x => _followerState.CurrentAction == ActionsEnum.UsingPortal,
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
                     {
-                        LogMsgWithVerboseDebug("Using portal");
-
                         Input.KeyUp(Keys.T);
 
-                        _followerState.SavedLastTimePortalUsedDateTime = _emptyDateTime;
-                        _followerState.LastTimePortalUsedDateTime = _emptyDateTime;
+                        _followerState.PortalLogicIterationCount++;
 
-                        List<Entity> entities = GetEntitiesByEntityTypeAndSortByDistance(EntityType.TownPortal, GameController.Player);
-                        if (!entities.Any()) return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        // Allow only 3 portal logic iterations
+                        if (_followerState.PortalLogicIterationCount > 3)
+                        {
+                            _followerState.PortalLogicIterationCount = 0;
+                            _followerState.CurrentAction = ActionsEnum.Nothing;
 
-                        var hovered = HoverToEntityAction(entities.First());
+                            return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        }
+
+                        Entity portalEntity = GetEntitiesByEntityTypeAndSortByDistance(EntityType.TownPortal, GameController.Player).FirstOrDefault();
+                        if (portalEntity == null) return TreeRoutine.TreeSharp.RunStatus.Failure;
+
+                        // If portal entity is too far away stop the whole logic
+                        if (portalEntity.Distance(GameController.Player) > 70)
+                        {
+                            return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        }
+
+                        bool hovered = HoverToEntityAction(portalEntity);
 
                         if (!hovered) return TreeRoutine.TreeSharp.RunStatus.Failure;
 
                         Mouse.LeftClick(10);
                         Thread.Sleep(2000);
+
+                        _followerState.PortalLogicIterationCount = 0;
+                        _followerState.CurrentAction = ActionsEnum.Nothing;
 
                         return TreeRoutine.TreeSharp.RunStatus.Success;
                     })
@@ -436,34 +450,44 @@ namespace FollowerV2
             );
         }
 
-        private Composite CreateUsingEntranceComposite()
+        private Composite CreateUsingEntranceCompositeV2()
         {
-            LogMsgWithVerboseDebug($"{nameof(CreateUsingEntranceComposite)} called");
-
-            return new Decorator(x => ShouldUseEntrance(),
+            LogMsgWithVerboseDebug($"{nameof(CreateUsingEntranceCompositeV2)} called");
+            return new Decorator(x => _followerState.CurrentAction == ActionsEnum.UsingEntrance,
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
                     {
-                        LogMsgWithVerboseDebug("Using entrance");
-
                         Input.KeyUp(Keys.T);
 
-                        _followerState.CurrentAction = ActionsEnum.UsingEntrance;
-                        _followerState.SavedLastTimeEntranceUsedDateTime = _followerState.LastTimeEntranceUsedDateTime;
+                        _followerState.EntranceLogicIterationCount++;
 
-                        List<Entity> entities = GetEntitiesByEntityTypeAndSortByDistance(EntityType.AreaTransition, GameController.Player);
+                        // Allow only 3 entrance logic iterations
+                        if (_followerState.EntranceLogicIterationCount > 3)
+                        {
+                            _followerState.EntranceLogicIterationCount = 0;
+                            _followerState.CurrentAction = ActionsEnum.Nothing;
 
-                        if (!entities.Any()) return TreeRoutine.TreeSharp.RunStatus.Failure;
+                            return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        }
 
-                        var hovered = HoverToEntityAction(entities.First());
+                        Entity entranceEntity = GetEntitiesByEntityTypeAndSortByDistance(EntityType.AreaTransition, GameController.Player).FirstOrDefault();
+                        if (entranceEntity == null) return TreeRoutine.TreeSharp.RunStatus.Failure;
 
-                        _followerState.CurrentAction = ActionsEnum.Nothing;
-                        _followerState.SavedLastTimeEntranceUsedDateTime = _emptyDateTime;
+                        // If portal entity is too far away stop the whole logic
+                        if (entranceEntity.Distance(GameController.Player) > 70)
+                        {
+                            return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        }
+
+                        bool hovered = HoverToEntityAction(entranceEntity);
 
                         if (!hovered) return TreeRoutine.TreeSharp.RunStatus.Failure;
 
                         Mouse.LeftClick(10);
                         Thread.Sleep(2000);
+
+                        _followerState.EntranceLogicIterationCount = 0;
+                        _followerState.CurrentAction = ActionsEnum.Nothing;
 
                         return TreeRoutine.TreeSharp.RunStatus.Success;
                     })
@@ -479,9 +503,9 @@ namespace FollowerV2
             // Matrix of offsets as vectors. Try each offset and see whether the entity's isTargeted is true
             List<Vector2> offsets = new List<Vector2>();
 
-            foreach (int xOffset in Enumerable.Range(-20, 20))
+            foreach (int yOffset in Enumerable.Range(-5, 5))
             {
-                foreach (int yOffset in Enumerable.Range(-20, 20))
+                foreach (int xOffset in Enumerable.Range(-5, 5))
                 {
                     offsets.Add(new Vector2(xOffset * offsetValue, yOffset * offsetValue));
                 }
@@ -499,6 +523,11 @@ namespace FollowerV2
                     break;
                 }
 
+                if (!Settings.FollowerModeSettings.FollowerShouldWork.Value) break;
+
+                // If entity is not present anymore (e.g. map portal is used by another player) stop hovering
+                if (!IsEntityPresent(entity.Id)) break;
+
                 int elem = rnd.Next(offsets.Count);
                 Vector2 offset = offsets[elem];
                 offsets.Remove(offset);
@@ -510,6 +539,19 @@ namespace FollowerV2
             Thread.Sleep(50);
 
             return targeted;
+        }
+
+        private bool IsEntityPresent(uint entityId)
+        {
+            bool isEntityPresent = false;
+            try
+            {
+                isEntityPresent = GameController.Entities.Any(e => e.Id == entityId);
+
+            }
+            catch (Exception e) { }
+
+            return isEntityPresent;
         }
 
         private TreeRoutine.TreeSharp.Action SleepAction(int timeoutMs)
@@ -533,23 +575,6 @@ namespace FollowerV2
         {
             return _followerState.LastTimeQuestItemPickupDateTime != _emptyDateTime &&
                    _followerState.LastTimeQuestItemPickupDateTime != _followerState.SavedLastTimeQuestItemPickupDateTime;
-        }
-
-        private bool ShouldUseEntrance()
-        {
-            return _followerState.LastTimeEntranceUsedDateTime != _emptyDateTime &&
-                   _followerState.LastTimeEntranceUsedDateTime != _followerState.SavedLastTimeEntranceUsedDateTime;
-        }
-
-        private bool ShouldUsePortal()
-        {
-            return _followerState.LastTimePortalUsedDateTime != _emptyDateTime &&
-                   _followerState.LastTimePortalUsedDateTime != _followerState.SavedLastTimePortalUsedDateTime;
-        }
-
-        private bool IsActionInProgress()
-        {
-            return _followerState.CurrentAction != ActionsEnum.Nothing;
         }
 
         private bool ShouldFollowLeader()
@@ -861,7 +886,7 @@ namespace FollowerV2
 
             Vector2 finalPos = new Vector2(result.X + randomXOffset + xOffset + windowOffset.X, result.Y + randomYOffset + yOffset + windowOffset.Y);
 
-            Mouse.MoveCursorToPosition(finalPos);
+            Mouse.SetCursorPosHuman2(finalPos);
         }
 
         private IEnumerator DoFollowerNetworkActivityWork()
@@ -952,6 +977,19 @@ namespace FollowerV2
             _followerState.LastTimeNormalItemPickupDateTime = follower.LastTimeNormalItemPickupDateTime;
             _followerState.LastTimeNormalItemPickupDateTime = follower.LastTimeNormalItemPickupDateTime;
             _followerState.NormalItemId = follower.NormalItemId;
+
+            if (_followerState.LastTimePortalUsedDateTime != _emptyDateTime && _followerState.LastTimePortalUsedDateTime != _followerState.SavedLastTimePortalUsedDateTime)
+            {
+                _followerState.SavedLastTimePortalUsedDateTime = _followerState.LastTimePortalUsedDateTime;
+                _followerState.CurrentAction = ActionsEnum.UsingPortal;
+            }
+
+            if (_followerState.LastTimeEntranceUsedDateTime != _emptyDateTime && _followerState.LastTimeEntranceUsedDateTime != _followerState.SavedLastTimeEntranceUsedDateTime)
+            {
+                _followerState.SavedLastTimeEntranceUsedDateTime = _followerState.LastTimeEntranceUsedDateTime;
+                _followerState.CurrentAction = ActionsEnum.UsingEntrance;
+            }
+
         }
 
         private void StartNetworkRequestingPressed()

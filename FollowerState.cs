@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FollowerV2
 {
@@ -27,6 +23,11 @@ namespace FollowerV2
         public int NormalItemId = 0;
 
         public ActionsEnum CurrentAction = ActionsEnum.Nothing;
+
+        public int PortalLogicIterationCount = 0;
+        public int EntranceLogicIterationCount = 0;
+
+
     }
 
     public enum ActionsEnum
@@ -36,6 +37,5 @@ namespace FollowerV2
         UsingPortal,
         PickingQuestItem,
         PickingNormalItem,
-        Moving,
     }
 }

@@ -199,11 +199,11 @@ namespace FollowerV2
             MouseMove();
         }
 
-        public static float speedMouse;
+        public static float SpeedMouse = 1;
 
         public static IEnumerator SetCursorPosHuman(Vector2 vec)
         {
-            var step = (float) Math.Sqrt(Vector2.Distance(GetCursorPositionVector(), vec)) * speedMouse / 20;
+            var step = (float) Math.Sqrt(Vector2.Distance(GetCursorPositionVector(), vec)) * SpeedMouse / 20;
 
             if (step > 6)
             {
@@ -212,6 +212,23 @@ namespace FollowerV2
                     var vector2 = Vector2.SmoothStep(GetCursorPositionVector(), vec, i / step);
                     SetCursorPos((int) vector2.X, (int) vector2.Y);
                     yield return new WaitTime(1);
+                }
+            }
+            else
+                SetCursorPos(vec);
+        }
+
+        public static void SetCursorPosHuman2(Vector2 vec)
+        {
+            var step = (float)Math.Sqrt(Vector2.Distance(GetCursorPositionVector(), vec)) * SpeedMouse / 20;
+
+            if (step > 6)
+            {
+                for (var i = 0; i < step; i++)
+                {
+                    var vector2 = Vector2.SmoothStep(GetCursorPositionVector(), vec, i / step);
+                    SetCursorPos((int)vector2.X, (int)vector2.Y);
+                    Thread.Sleep(5);
                 }
             }
             else
