@@ -20,7 +20,8 @@ Leader commands followers. You can propagate actions such as:
 
 * Use portal
 * Use entrance
-* Pick targeted item
+* Click on the targeted by leader item (potion, item, WP)
+* Level up gems
 * Follow leader, stop following leader
 
 Follower listens to the HTTP server and depending on action propagated does what Leader commanded.
