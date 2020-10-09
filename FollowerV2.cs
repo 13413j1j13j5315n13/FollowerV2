@@ -93,7 +93,7 @@ namespace FollowerV2
             _delayHelper.AddToDelayManager(nameof(OnPropagateWorkingOfFollowersHotkeyPressed), OnPropagateWorkingOfFollowersHotkeyPressed, 1000);
             _delayHelper.AddToDelayManager(nameof(DebugHoverToLeader), DebugHoverToLeader, 50);
             _delayHelper.AddToDelayManager(nameof(StartNetworkRequestingPressed), StartNetworkRequestingPressed, 1000);
-            _delayHelper.AddToDelayManager(nameof(SendPickupItemSignal), SendPickupItemSignal, 1000);
+            _delayHelper.AddToDelayManager(nameof(SendPickupItemSignal), SendPickupItemSignal, 500);
 
             SetAllOnCallbacks();
 
@@ -201,7 +201,7 @@ namespace FollowerV2
             {
                 if (Input.GetKeyState(Keys.ControlKey))
                 {
-                    Keys[] numberKeys = { Keys.D1, Keys.D2, Keys.D3, Keys.D4, Keys.D5, Keys.D6, Keys.D7, Keys.D8, Keys.D9, Keys.D0 };
+                    Keys[] numberKeys = { Keys.A, Keys.D1, Keys.D2, Keys.D3, Keys.D4, Keys.D5, Keys.D6, Keys.D7, Keys.D8, Keys.D9, Keys.D0 };
                     bool anyNumberKeyPressed = numberKeys.Any(Input.GetKeyState);
                     if (anyNumberKeyPressed)
                     {
@@ -226,6 +226,7 @@ namespace FollowerV2
             else if (Input.GetKeyState(Keys.D8)) index = 7;
             else if (Input.GetKeyState(Keys.D9)) index = 8;
             else if (Input.GetKeyState(Keys.D0)) index = 9;
+            else if (Input.GetKeyState(Keys.A)) index = -1;
             else
             {
                 LogMsgWithVerboseDebug("*** No proper number key pressed found");
@@ -238,8 +239,6 @@ namespace FollowerV2
                 LogMsgWithVerboseDebug("*** index was larger than length");
                 return;
             }
-
-            FollowerCommandsDataClass follower = Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.ElementAt(index);
 
             Entity targetedEntity = GameController.EntityListWrapper.Entities
                 .Where(e => e.GetComponent<Targetable>() != null)
@@ -254,6 +253,17 @@ namespace FollowerV2
             }
 
             int entityId = (int)targetedEntity.Id;
+
+            if (index == -1)
+            {
+                // Command all
+                LogMsgWithVerboseDebug($"*** Setting ALL followers to pick item id {entityId}");
+                Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.ForEach(f => f.SetPickupNormalItem(entityId));
+
+                return;
+            }
+
+            FollowerCommandsDataClass follower = Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.ElementAt(index);
             LogMsgWithVerboseDebug($"*** Setting follower {follower.FollowerName} to pick item id {entityId}");
 
             follower.SetPickupNormalItem(entityId);
@@ -329,16 +339,22 @@ namespace FollowerV2
                             _followerState.LastTimeQuestItemPickupDateTime = _emptyDateTime;
                             _followerState.SavedLastTimeQuestItemPickupDateTime = _emptyDateTime;
 
+                            Entity entity = null;
+
                             // Take only quest items
-                            Entity entity = GameController.EntityListWrapper.Entities
-                                .Where(e => e.Type == EntityType.WorldItem)
-                                .Where(e => e.IsTargetable)
-                                .Where(e => e.GetComponent<WorldItem>() != null)
-                                .FirstOrDefault(e =>
-                                {
-                                    Entity itemEntity = e.GetComponent<WorldItem>().ItemEntity;
-                                    return GameController.Files.BaseItemTypes.Translate(itemEntity.Path).ClassName == "QuestItem";
-                                });
+                            try
+                            {
+                                entity = GameController.EntityListWrapper.Entities
+                                    .Where(e => e.Type == EntityType.WorldItem)
+                                    .Where(e => e.IsTargetable)
+                                    .Where(e => e.GetComponent<WorldItem>() != null)
+                                    .FirstOrDefault(e =>
+                                    {
+                                        Entity itemEntity = e.GetComponent<WorldItem>().ItemEntity;
+                                        return GameController.Files.BaseItemTypes.Translate(itemEntity.Path).ClassName == "QuestItem";
+                                    });
+                            }
+                            catch (Exception e) { }
 
                             if (entity == null) return TreeRoutine.TreeSharp.RunStatus.Failure;
 
