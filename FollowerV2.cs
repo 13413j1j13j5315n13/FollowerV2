@@ -280,6 +280,7 @@ namespace FollowerV2
 
             return new Decorator(x => ShouldWork() && BtCanTick() && IsPlayerAlive(),
                 new PrioritySelector(
+                    CreateLevelUpGemsComposite(),
                     CreatePickingTargetedItemComposite(),
                     CreatePickingQuestItemComposite(),
                     CreateUsingPortalComposite(),
@@ -534,7 +535,7 @@ namespace FollowerV2
                             _followerState.CurrentAction = ActionsEnum.Nothing;
                             _followerState.ResetAreaChangingValues();
                         }
-                        
+
                         return TreeRoutine.TreeSharp.RunStatus.Success;
                     })
                 )
@@ -583,6 +584,22 @@ namespace FollowerV2
                         }
 
                         return TreeRoutine.TreeSharp.RunStatus.Success;
+                    })
+                )
+            );
+        }
+
+        private Composite CreateLevelUpGemsComposite()
+        {
+            LogMsgWithVerboseDebug($"{nameof(CreateLevelUpGemsComposite)} called");
+
+            return new Decorator(x => ShouldLevelUpGems(),
+                new Sequence(
+                    new TreeRoutine.TreeSharp.Action(x =>
+                    {
+                        Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
+
+                        LogMsgWithVerboseDebug("Leveling up gems");
                     })
                 )
             );
@@ -682,22 +699,41 @@ namespace FollowerV2
             // If X or Y value of the saved coordinates have changed more than the treshold it means we have changed the area
             int posTreshold = 1200;
 
-            int xChange =  Math.Abs((int)_followerState.SavedCurrentPos.X - (int)GameController.Player.Pos.X);
-            int yChange =  Math.Abs((int)_followerState.SavedCurrentPos.Y - (int)GameController.Player.Pos.Y);
+            int xChange = Math.Abs((int)_followerState.SavedCurrentPos.X - (int)GameController.Player.Pos.X);
+            int yChange = Math.Abs((int)_followerState.SavedCurrentPos.Y - (int)GameController.Player.Pos.Y);
 
             return xChange > posTreshold || yChange > posTreshold;
         }
 
-        private TreeRoutine.TreeSharp.Action SleepAction(int timeoutMs)
-        {
-            return new TreeRoutine.TreeSharp.Action(x =>
-            {
-                Thread.Sleep(2000);
-                return TreeRoutine.TreeSharp.RunStatus.Success;
-            });
-        }
-
         #region TreeSharp Related
+
+        private bool ShouldLevelUpGems()
+        {
+            // Return fast so that we do not waste computing resources
+            if (!_followerState.ShouldLevelUpGems) return false;
+
+            // Also do not run gems level up composite more often than once per second
+            int delayMs = 1000;
+            long delta = DelayHelper.GetDeltaInMilliseconds(_followerState.LastTimeLevelUpGemsCompositeRan);
+            if (delta < delayMs) return false;
+
+            _followerState.LastTimeLevelUpGemsCompositeRan = DateTime.UtcNow;
+
+            // Do we have gems to level-up ?
+            bool haveAvailableGems = false;
+
+            GameController.IngameState.IngameUi.GemLvlUpPanel?.GemsToLvlUp?
+                 .Select(g => g.Children)
+                 .SelectMany(i => i)
+                 .Where(e => e.Text != null)
+                 .Select(e => e.Text.Contains("Click to level"))
+                 .ToList().ForEach(a =>
+                 {
+                     haveAvailableGems = true;
+                 });
+
+            return haveAvailableGems;
+        }
 
         private bool ShouldAttackMonsters()
         {
@@ -713,7 +749,7 @@ namespace FollowerV2
 
             // Are monsters within any of the attack skill distances?
             List<int> skillDistances = availableAttackSkills.Select(s => s.MaxRangeToMonsters).ToList();
-            List<int> monsterDistancesToPlayer = monstersList.Select(e => (int) e.DistancePlayer).ToList();
+            List<int> monsterDistancesToPlayer = monstersList.Select(e => (int)e.DistancePlayer).ToList();
             bool withinRange = false;
 
             foreach (int monsterDistance in monsterDistancesToPlayer)
@@ -1072,7 +1108,7 @@ namespace FollowerV2
             int randomYOffset = new Random().Next(0, Settings.RandomClickOffset.Value);
 
             Vector2 finalPos = new Vector2(
-                result.X + randomXOffset + xOffset + windowOffset.X, 
+                result.X + randomXOffset + xOffset + windowOffset.X,
                 result.Y + randomYOffset + yOffset + windowOffset.Y);
 
             bool intersects = GameController.Window.GetWindowRectangleTimeCache.Intersects(new RectangleF(finalPos.X, finalPos.Y, 3, 3));
@@ -1200,6 +1236,7 @@ namespace FollowerV2
             _followerState.LastTimeNormalItemPickupDateTime = follower.LastTimeNormalItemPickupDateTime;
             _followerState.LastTimeNormalItemPickupDateTime = follower.LastTimeNormalItemPickupDateTime;
             _followerState.NormalItemId = follower.NormalItemId;
+            _followerState.ShouldLevelUpGems = follower.ShouldLevelUpGems;
 
             if (_followerState.LastTimePortalUsedDateTime != _emptyDateTime && _followerState.LastTimePortalUsedDateTime != _followerState.SavedLastTimePortalUsedDateTime)
             {
