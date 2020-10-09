@@ -133,3 +133,8 @@ Queuete's [ExileApi](https://github.com/Queuete/ExileApi) was able to download a
 ## Recommended plugins to use
 
 [BasicFlaskRoutine](https://github.com/Queuete/BasicFlaskRoutine) for Health and Quicksilver Flasks
+
+## FAQ
+
+1. Can you implement commands, such as entering an entrance or portal, locally?
+	* Only if you will tell me how to do it so that it will work at least across the local network and will not be suspicious by GGG. E.g. chat commands are bad idea because GGG can parse them and mark your accounts as suspicious.
