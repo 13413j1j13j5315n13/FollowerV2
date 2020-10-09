@@ -270,15 +270,22 @@ namespace FollowerV2
                         {
                             foreach (var follower in LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet)
                             {
-                                if (ImGui.TreeNodeEx($"Follower \"{follower.FollowerName}\" skill settings##{follower.FollowerName}"))
+                                if (ImGui.TreeNodeEx($"Follower \"{follower.FollowerName}\" settings##{follower.FollowerName}"))
                                 {
+                                    string imguiId = follower.FollowerName;
+
+                                    ImGui.TextDisabled($"****** Other settings ******");
+                                    ImGui.Spacing();
+                                    ImGui.Spacing();
+                                    follower.ShouldLevelUpGems = ImGuiExtension.Checkbox($"Level up gems##{imguiId}", follower.ShouldLevelUpGems);
+
+                                    ImGui.TextDisabled($"****** Skill settings ******");
                                     if (ImGui.Button($"Add new skill##{follower.FollowerName}")) follower.AddNewEmptySkill();
                                     ImGui.Spacing();
                                     ImGui.Spacing();
 
                                     foreach (FollowerSkill skill in follower.FollowerSkills)
                                     {
-                                        string imguiId = follower.FollowerName + skill.Id.ToString();
                                         ImGui.TextDisabled($"------ Skill (id: {skill.Id}) ------");
 
                                         skill.Enable = ImGuiExtension.Checkbox($"Enable##{imguiId}", skill.Enable);

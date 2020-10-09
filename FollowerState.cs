@@ -34,6 +34,10 @@ namespace FollowerV2
 
         public List<FollowerSkill> FollowerSkills { get; set; } = new List<FollowerSkill>();
 
+        public bool ShouldLevelUpGems = false;
+
+        public DateTime LastTimeLevelUpGemsCompositeRan { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
         public void ResetAreaChangingValues()
         {
             EntranceLogicIterationCount = 0;

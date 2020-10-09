@@ -56,6 +56,8 @@ namespace FollowerV2
 
         public List<FollowerSkill> FollowerSkills = new List<FollowerSkill>();
 
+        public bool ShouldLevelUpGems = false;
+
         public FollowerCommandsDataClass() { }
 
         public FollowerCommandsDataClass(string followerName)
