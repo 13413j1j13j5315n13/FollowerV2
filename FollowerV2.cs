@@ -599,7 +599,30 @@ namespace FollowerV2
                     {
                         Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
 
-                        LogMsgWithVerboseDebug("Leveling up gems");
+                        List<Element> gemsToLvlUpElements = GetLevelableGems();
+
+                        if (!gemsToLvlUpElements.Any()) return TreeRoutine.TreeSharp.RunStatus.Failure;
+
+                        // "+" sign on the gem level up element has Height as 45, search for this element only
+                        List<Element> elementsToClick = gemsToLvlUpElements
+                            .SelectMany(e => e.Children)
+                            .Where(e => (int)e.Height > 40 && (int)e.Height < 50)
+                            .ToList();
+
+                        Vector2 windowOffset = GameController.Window.GetWindowRectangle().TopLeft;
+
+                        foreach (Element elem in elementsToClick)
+                        {
+                            Vector2 elemCenter = elem.GetClientRectCache.Center;
+                            Vector2 finalPos = new Vector2(elemCenter.X + windowOffset.X, elemCenter.Y + windowOffset.Y);
+
+                            Mouse.SetCursorPosHuman2(finalPos);
+                            Thread.Sleep(200);
+                            Mouse.LeftClick(10);
+                            Thread.Sleep(200);
+                        }
+
+                        return TreeRoutine.TreeSharp.RunStatus.Success;
                     })
                 )
             );
@@ -712,27 +735,36 @@ namespace FollowerV2
             // Return fast so that we do not waste computing resources
             if (!_followerState.ShouldLevelUpGems) return false;
 
-            // Also do not run gems level up composite more often than once per second
-            int delayMs = 1000;
+            // Also do not run gems level up composite more often than once per 5 seconds
+            int delayMs = 5000;
             long delta = DelayHelper.GetDeltaInMilliseconds(_followerState.LastTimeLevelUpGemsCompositeRan);
             if (delta < delayMs) return false;
 
             _followerState.LastTimeLevelUpGemsCompositeRan = DateTime.UtcNow;
 
             // Do we have gems to level-up ?
-            bool haveAvailableGems = false;
+            return GetLevelableGems().Any();
+        }
 
-            GameController.IngameState.IngameUi.GemLvlUpPanel?.GemsToLvlUp?
-                 .Select(g => g.Children)
-                 .SelectMany(i => i)
-                 .Where(e => e.Text != null)
-                 .Select(e => e.Text.Contains("Click to level"))
-                 .ToList().ForEach(a =>
-                 {
-                     haveAvailableGems = true;
-                 });
+        private List<Element> GetLevelableGems()
+        {
+            List<Element> gemsToLevelUp = new List<Element>();
 
-            return haveAvailableGems;
+            var possibleGemsToLvlUpElements = GameController.IngameState.IngameUi?.GemLvlUpPanel?.GemsToLvlUp;
+
+            if (possibleGemsToLvlUpElements != null && possibleGemsToLvlUpElements.Any())
+            {
+                foreach (Element possibleGemsToLvlUpElement in possibleGemsToLvlUpElements)
+                {
+                    foreach (Element elem in possibleGemsToLvlUpElement.Children)
+                    {
+                        if (elem.Text != null && elem.Text.Contains("Click to level"))
+                            gemsToLevelUp.Add(possibleGemsToLvlUpElement);
+                    }
+                }
+            }
+
+            return gemsToLevelUp;
         }
 
         private bool ShouldAttackMonsters()
