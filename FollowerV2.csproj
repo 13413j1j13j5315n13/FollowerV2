@@ -110,6 +110,7 @@
     <Compile Include="ImGuiExtension.cs" />
     <Compile Include="Mouse.cs" />
     <Compile Include="NetworkActivityObject.cs" />
+    <Compile Include="NetworkHelper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="TreeSharp\Action.cs" />
