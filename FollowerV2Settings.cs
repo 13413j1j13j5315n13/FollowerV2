@@ -153,6 +153,13 @@ namespace FollowerV2
                 {
                     FollowerModeSettings.FollowerModes.Value = ImGuiExtension.ComboBox("Follower modes", FollowerModeSettings.FollowerModes.Value, FollowerModeSettings.FollowerModes.Values);
 
+                    ImGui.Spacing();
+                    ImGui.TextDisabled("The minimum FPS threshold when the follower will do other actions than following");
+                    FollowerModeSettings.MinimumFpsThreshold.Value = ImGuiExtension.IntSlider("Minimum FPS threshold", FollowerModeSettings.MinimumFpsThreshold);
+
+                    ImGui.Spacing();
+                    ImGui.Spacing();
+
                     if (FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Local)
                     {
                         ImGui.TextDisabled("This mode will NOT do any network requests and will use ONLY settings values");
@@ -211,7 +218,6 @@ namespace FollowerV2
 
                     ImGui.Spacing();
                     ImGui.Separator();
-                    //ImGui.TreePop();
                 }
             }
 
@@ -249,6 +255,16 @@ namespace FollowerV2
                         ImGuiExtension.ToolTipWithText("(?)", "Set \"Debug: show radius\" on to see the radius");
                         ImGuiExtension.ToolTipWithText("(?)", "Color: Yellow");
 
+                        ImGui.Spacing();
+                        ImGui.Spacing();
+                        ImGui.TextDisabled("The minimum FPS threshold when followers will start other activities");
+                        ImGui.TextDisabled("   than just following");
+                        LeaderModeSettings.MinimumFpsThresholdToPropagate.Value = ImGuiExtension.IntSlider("Minimum FPS threshold", LeaderModeSettings.MinimumFpsThresholdToPropagate);
+                        ImGuiExtension.ToolTipWithText("(?)", "Minimum FPS threshold to propagate");
+
+                        ImGui.Spacing();
+                        ImGui.Spacing();
+
                         if (ImGui.TreeNodeEx("Follower command settings"))
                         {
                             ImGui.Spacing();
@@ -257,13 +273,14 @@ namespace FollowerV2
                             ImGui.Spacing();
                             LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName.Value = ImGuiExtension.InputText("Slave's name", LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName);
                             ImGui.Spacing();
+                            if (ImGui.Button("Add new slave")) LeaderModeSettings.NewFollowerCommandClassSetting.AddNewFollowerButton.OnPressed();
+                            ImGui.Spacing();
+                            ImGui.Spacing();
                             NearbyPlayers.Value = ImGuiExtension.ComboBox("Use nearby player's name", NearbyPlayers.Value, NearbyPlayers.Values);
                             ImGui.Spacing();
                             if (ImGui.Button("Set selected value")) LeaderModeSettings.NewFollowerCommandClassSetting.UseNearbyPlayerNameButton.OnPressed();
                             ImGui.Spacing();
-                            ImGui.Spacing();
-                            if (ImGui.Button("Add new slave")) LeaderModeSettings.NewFollowerCommandClassSetting.AddNewFollowerButton.OnPressed();
-                            ImGui.Spacing();
+                            
                         }
 
                         if (LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.Any())
@@ -386,6 +403,7 @@ namespace FollowerV2
         public HotkeyNode StartNetworkRequestingHotkey { get; set; } = Keys.F3;
         public HotkeyNode MoveHotkey { get; set; } = Keys.T;
         public RangeNode<int> MoveLogicCooldown { get; set; } = new RangeNode<int>(50, 20, 300);
+        public RangeNode<int> MinimumFpsThreshold { get; set; } = new RangeNode<int>(5, 1, 10);
     }
 
     public class LeaderModeSetting
@@ -404,6 +422,8 @@ namespace FollowerV2
         public FollowerCommandSetting FollowerCommandSetting = new FollowerCommandSetting();
 
         public NewFollowerCommandClassSetting NewFollowerCommandClassSetting = new NewFollowerCommandClassSetting();
+
+        public RangeNode<int> MinimumFpsThresholdToPropagate { get; set; } = new RangeNode<int>(5, 1, 10);
     }
 
     public class NewFollowerCommandClassSetting
