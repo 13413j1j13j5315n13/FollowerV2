@@ -138,3 +138,40 @@ Queuete's [ExileApi](https://github.com/Queuete/ExileApi) was able to download a
 
 1. Can you implement commands, such as entering an entrance or portal, locally?
 	* Only if you will tell me how to do it so that it will work at least across the local network and will not be suspicious by GGG. E.g. chat commands are bad idea because GGG can parse them and mark your accounts as suspicious.
+
+## Used offsets and functions
+
+1. GameController.LeftPanel
+1. GameController.LeftPanel.StartDrawPoint
+1. GameController.InGame
+1. GameController.EntityListWrapper.Player
+1. GameController.EntityListWrapper.Entities
+1. GameController.Entities
+1. GameController.IsLoading
+1. GameController.Window.GetWindowRectangle().TopLeft
+1. GameController.Window.IsForeground()
+1. GameController.IngameState.Data.CurrentAreaHash
+1. GameController.IngameState.IngameUi.GemLvlUpPanel.GemsToLvlUp.Children
+1. GameController.IngameState.CurFps
+1. GameController.Game.IngameState.Camera
+1. GameController.Game.IngameState.ServerData.IsInGame
+1. GameController.Game.IngameState.Data.LocalPlayer.GetComponent<Life>().CurHP
+
+1. Entity fields:
+	1. entity.Id
+	1. entity.Type
+	1. entity.IsTargetable
+	1. entity.IsAlive
+	1. entity.IsHostile
+	1. entity.IsValid
+	1. entity.Distance()
+	1. entity.GetComponent<Targetable>()
+	1. entity.GetComponent<Targetable>().isTargeted
+	1. entity.GetComponent<Player>().PlayerName
+	1. entity.GetComponent<WorldItem>().ItemEntity
+
+1. GameController.Player
+	1. Player
+	1. Player.Pos
+	1. Player.GetComponent<Actor>().Action
+	1. Player.GetComponent<Actor>().Action
