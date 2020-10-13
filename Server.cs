@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using ExileCore;
@@ -51,11 +52,18 @@ namespace FollowerV2
                 HttpListenerContext context = _httpListener.GetContext();
                 HttpListenerRequest request = context.Request;
                 HttpListenerResponse response = context.Response;
+                byte[] buffer = new byte[] { };
+                response.ContentLength64 = 0;
+                response.StatusCode = (int)HttpStatusCode.OK;
 
-                string responseString = JsonConvert.SerializeObject(CreateNetworkActivityObject());
+                if (request.HttpMethod == "GET")
+                {
+                    string responseString = JsonConvert.SerializeObject(CreateNetworkActivityObject());
 
-                byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
-                response.ContentLength64 = buffer.Length;
+                    buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
+                    response.ContentLength64 = buffer.Length;
+                }
+
                 System.IO.Stream output = response.OutputStream;
                 output.Write(buffer, 0, buffer.Length);
                 output.Close();
