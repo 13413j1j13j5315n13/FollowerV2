@@ -137,6 +137,7 @@ namespace FollowerV2
                 FollowersShouldWork = _followerSettings.LeaderModeSettings.PropagateWorkingOfFollowers.Value,
                 LeaderName = _followerSettings.LeaderModeSettings.LeaderNameToPropagate.Value,
                 LeaderProximityRadius = _followerSettings.LeaderModeSettings.LeaderProximityRadiusToPropagate.Value,
+                MinimumFpsThreshold = _followerSettings.LeaderModeSettings.MinimumFpsThresholdToPropagate.Value,
                 FollowerCommandSettings =  _followerSettings.LeaderModeSettings.FollowerCommandSetting
             };
         }

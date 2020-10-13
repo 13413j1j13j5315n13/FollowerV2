@@ -318,7 +318,7 @@ namespace FollowerV2
 
         private Composite CreatePickingQuestItemComposite()
         {
-            return new Decorator(x => ShouldPickupQuestItem(),
+            return new Decorator(x => ShouldPickupQuestItem() && IsFpsAboveThreshold(),
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
                         {
@@ -367,7 +367,7 @@ namespace FollowerV2
 
         private Composite CreatePickingTargetedItemComposite()
         {
-            return new Decorator(x => ShouldPickupNormalItem(),
+            return new Decorator(x => ShouldPickupNormalItem() && IsFpsAboveThreshold(),
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
                     {
@@ -411,7 +411,7 @@ namespace FollowerV2
         private Composite CreateUsingPortalComposite()
         {
             LogMsgWithVerboseDebug($"{nameof(CreateUsingPortalComposite)} called");
-            return new Decorator(x => _followerState.CurrentAction == ActionsEnum.UsingPortal,
+            return new Decorator(x => _followerState.CurrentAction == ActionsEnum.UsingPortal && IsFpsAboveThreshold(),
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
                     {
@@ -472,7 +472,7 @@ namespace FollowerV2
         private Composite CreateUsingEntranceComposite()
         {
             LogMsgWithVerboseDebug($"{nameof(CreateUsingEntranceComposite)} called");
-            return new Decorator(x => _followerState.CurrentAction == ActionsEnum.UsingEntrance,
+            return new Decorator(x => _followerState.CurrentAction == ActionsEnum.UsingEntrance && IsFpsAboveThreshold(),
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
                     {
@@ -535,7 +535,7 @@ namespace FollowerV2
         {
             LogMsgWithVerboseDebug($"{nameof(CreateCombatComposite)} called");
 
-            return new Decorator(x => ShouldAttackMonsters(),
+            return new Decorator(x => ShouldAttackMonsters() && IsFpsAboveThreshold(),
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
                     {
@@ -582,7 +582,7 @@ namespace FollowerV2
         {
             LogMsgWithVerboseDebug($"{nameof(CreateLevelUpGemsComposite)} called");
 
-            return new Decorator(x => ShouldLevelUpGems(),
+            return new Decorator(x => ShouldLevelUpGems() && IsFpsAboveThreshold(),
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
                     {
@@ -754,6 +754,14 @@ namespace FollowerV2
             }
 
             return gemsToLevelUp;
+        }
+
+        private bool IsFpsAboveThreshold()
+        {
+            int currentFps = (int)GameController.IngameState.CurFps;
+            int threshold = Settings.FollowerModeSettings.MinimumFpsThreshold.Value;
+
+            return currentFps >= threshold;
         }
 
         private bool ShouldAttackMonsters()
@@ -1250,6 +1258,7 @@ namespace FollowerV2
             Settings.FollowerModeSettings.FollowerShouldWork.Value = obj.FollowersShouldWork;
             Settings.FollowerModeSettings.LeaderName.Value = obj.LeaderName;
             Settings.FollowerModeSettings.LeaderProximityRadius.Value = obj.LeaderProximityRadius;
+            Settings.FollowerModeSettings.MinimumFpsThreshold.Value = obj.MinimumFpsThreshold;
 
             string selfName = GameController.EntityListWrapper.Player.GetComponent<Player>().PlayerName;
             var follower = obj.FollowerCommandSettings.FollowerCommandsDataSet.First(f => f.FollowerName == selfName);
