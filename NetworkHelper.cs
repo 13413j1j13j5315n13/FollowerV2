@@ -32,17 +32,15 @@ namespace FollowerV2
             request.Method = "GET";
             request.Timeout = timeoutMs;
             request.ReadWriteTimeout = timeoutMs;
-            var response = (HttpWebResponse) request.GetResponse();
-
+            
             try
             {
+                var response = (HttpWebResponse)request.GetResponse();
                 var stream = response.GetResponseStream();
                 var reader = new StreamReader(stream);
                 returnVal = reader.ReadToEnd();
             }
-            catch (Exception e)
-            {
-            }
+            catch {}
 
             return returnVal;
         }
