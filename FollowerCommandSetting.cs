@@ -30,8 +30,8 @@ namespace FollowerV2
         {
             if (string.IsNullOrEmpty(followerName)) return;
 
-            FollowerCommandsDataClass follower = FollowerCommandsDataSet.First(a => a.FollowerName == followerName);
-            FollowerCommandsDataSet.Remove(follower);
+            FollowerCommandsDataClass follower = FollowerCommandsDataSet.FirstOrDefault(a => a.FollowerName == followerName);
+            if (follower != null) FollowerCommandsDataSet.Remove(follower);
         }
     }
 
