@@ -1341,14 +1341,13 @@ namespace FollowerV2
 
         private ICollection<Entity> GetEntities()
         {
-            ICollection<Entity> entities = null;
             try
             {
-                entities = GameController.Entities;
+                return GameController.Entities;
             }
             catch { }
 
-            return entities;
+            return null;
         }
 
         private void DebugHoverToLeader()
