@@ -547,24 +547,44 @@ namespace FollowerV2
         {
             LogMsgWithVerboseDebug($"{nameof(CreateCombatComposite)} called");
 
-            return new Decorator(x => ShouldAttackMonsters() && IsFpsAboveThreshold(),
+            return new Decorator(x => ShouldAttackMonsters() && IsFpsAboveThreshold() && _followerState.Aggressive,
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
                     {
                         Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
 
                         // Get first attack skill by priority
-                        FollowerSkill availableAttackSkill = GetFollowerAttackSkillsWithoutCooldown()
+                        var availableAttackSkill = GetFollowerAttackSkillsWithoutCooldown()
                             .OrderBy(s => s.Priority)
                             .FirstOrDefault();
 
-                        List<Entity> monsterEntities = GetMonsterEntities();
+                        if (availableAttackSkill == null) return RunStatus.Failure;
 
-                        if (availableAttackSkill == null || monsterEntities == null) return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        Entity entityToHover = null;
 
-                        Entity monster = monsterEntities.FirstOrDefault();
+                        if (availableAttackSkill.HoverEntityType == FollowerSkillHoverEntityType.Monster)
+                        {
+                            var monsterEntities = GetMonsterEntities();
+                            if (monsterEntities == null) return RunStatus.Failure;
 
-                        HoverTo(monster);
+                            entityToHover = monsterEntities.OrderBy(e => e.DistancePlayer).FirstOrDefault();
+                        }
+                        else if (availableAttackSkill.HoverEntityType == FollowerSkillHoverEntityType.Player)
+                        {
+                            entityToHover = GameController.Player;
+                        }
+                        else if (availableAttackSkill.HoverEntityType == FollowerSkillHoverEntityType.Leader)
+                        {
+                            entityToHover = GetLeaderEntity();
+                        }
+                        else if (availableAttackSkill.HoverEntityType == FollowerSkillHoverEntityType.Corpse)
+                        {
+                            entityToHover = GetClosestCorpse(availableAttackSkill.MaxRange);
+                        }
+
+                        if (entityToHover == null) return RunStatus.Failure;
+
+                        HoverTo(entityToHover);
                         Thread.Sleep(20);
 
                         Input.KeyDown(availableAttackSkill.Hotkey);
@@ -578,13 +598,14 @@ namespace FollowerV2
                         // Give 1 second max for animations to finish
                         foreach (var i in Enumerable.Range(0, 10))
                         {
-                            bool playerUsingAbility = GameController.Player.GetComponent<Actor>().Action == ActionFlags.UsingAbility;
+                            var playerUsingAbility = GameController.Player.GetComponent<Actor>().Action ==
+                                                     ActionFlags.UsingAbility;
 
                             if (!playerUsingAbility) break;
                             Thread.Sleep(100);
                         }
 
-                        return TreeRoutine.TreeSharp.RunStatus.Success;
+                        return RunStatus.Success;
                     })
                 )
             );
@@ -789,7 +810,7 @@ namespace FollowerV2
             if (monstersList == null || !monstersList.Any()) return false;
 
             // Are monsters within any of the attack skill distances?
-            List<int> skillDistances = availableAttackSkills.Select(s => s.MaxRangeToMonsters).ToList();
+            List<int> skillDistances = availableAttackSkills.Select(s => s.MaxRange).ToList();
             List<int> monsterDistancesToPlayer = monstersList.Select(e => (int)e.DistancePlayer).ToList();
             bool withinRange = false;
 
@@ -824,6 +845,24 @@ namespace FollowerV2
             catch { }
 
             return monstersList;
+        }
+
+        private Entity GetClosestCorpse(int maxDistance)
+        {
+            try
+            {
+                return GetEntities()
+                    .Where(e => e.Type == EntityType.Monster)
+                    .Where(e => !e.IsAlive)
+                    .Where(e => (int)e.DistancePlayer <= maxDistance)
+                    .OrderBy(e => e.DistancePlayer)
+                    .FirstOrDefault();
+            }
+            catch
+            {
+            }
+
+            return null;
         }
 
         private List<FollowerSkill> GetFollowerAttackSkillsWithoutCooldown()
@@ -1294,6 +1333,7 @@ namespace FollowerV2
             _followerState.LastTimeNormalItemPickupDateTime = follower.LastTimeNormalItemPickupDateTime;
             _followerState.NormalItemId = follower.NormalItemId;
             _followerState.ShouldLevelUpGems = follower.ShouldLevelUpGems;
+            _followerState.Aggressive = follower.Aggressive;
 
             if (_followerState.LastTimePortalUsedDateTime != _emptyDateTime && _followerState.LastTimePortalUsedDateTime != _followerState.SavedLastTimePortalUsedDateTime)
             {
@@ -1414,7 +1454,19 @@ namespace FollowerV2
 
             foreach (var follower in Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet)
             {
-                ImGui.TextUnformatted($"User {userNumber}: {follower.FollowerName}:");
+                int maxNameLength = 10;
+                string followerName = follower.FollowerName;
+
+                if (followerName.Length > maxNameLength)
+                {
+                    followerName = followerName.Substring(0, maxNameLength - 2) + "..";
+                }
+                else if (followerName.Length < maxNameLength)
+                {
+                    followerName = followerName.PadLeft(maxNameLength);
+                }
+
+                ImGui.TextUnformatted($"User {userNumber}: {followerName}:");
                 ImGui.SameLine();
                 if (follower.LastTimeEntranceUsedDateTime != emptyDateTime)
                 {
@@ -1423,17 +1475,17 @@ namespace FollowerV2
                 }
                 if (follower.LastTimePortalUsedDateTime != emptyDateTime)
                 {
-                    ImGui.TextUnformatted(" P");
+                    ImGui.TextUnformatted("P");
                     ImGui.SameLine();
                 }
                 if (follower.LastTimeQuestItemPickupDateTime != emptyDateTime)
                 {
-                    ImGui.TextUnformatted(" Q");
+                    ImGui.TextUnformatted("Q");
                     ImGui.SameLine();
                 }
                 if (follower.LastTimeNormalItemPickupDateTime != emptyDateTime)
                 {
-                    ImGui.TextUnformatted(" I");
+                    ImGui.TextUnformatted("I");
                     ImGui.SameLine();
                 }
 
@@ -1450,6 +1502,9 @@ namespace FollowerV2
 
                 ImGui.SameLine();
                 ImGui.TextUnformatted($"I: Ctrl+{userNumber}");
+
+                ImGui.SameLine();
+                ImGui.Checkbox($"Aggr##{follower.FollowerName}", ref follower.Aggressive);
 
                 userNumber++;
             }

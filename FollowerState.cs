@@ -36,6 +36,8 @@ namespace FollowerV2
 
         public bool ShouldLevelUpGems = false;
 
+        public bool Aggressive = true;
+
         public DateTime LastTimeLevelUpGemsCompositeRan { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         public void ResetAreaChangingValues()

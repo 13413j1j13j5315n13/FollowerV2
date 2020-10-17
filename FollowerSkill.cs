@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Windows.Forms;
+using ExileCore.Shared.Enums;
 using Newtonsoft.Json;
 
 namespace FollowerV2
@@ -10,11 +11,12 @@ namespace FollowerV2
         public bool Enable { get; set; } = false;
         public Keys Hotkey { get; set; } = Keys.Q;
         public bool IsMovingSkill { get; set; } = false;
+        public string HoverEntityType { get; set; } = FollowerSkillHoverEntityType.Monster;
 
         // Because ImGui uses "ref"
         public int CooldownMs = 3000;
         public int Priority = 5;
-        public int MaxRangeToMonsters = 70;
+        public int MaxRange = 70;
 
         [JsonIgnore] public DateTime LastTimeUsed = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -28,9 +30,10 @@ namespace FollowerV2
             Enable = s.Enable;
             Hotkey = s.Hotkey;
             IsMovingSkill = s.IsMovingSkill;
-            MaxRangeToMonsters = s.MaxRangeToMonsters;
+            MaxRange = s.MaxRange;
             CooldownMs = s.CooldownMs;
             Priority = s.Priority;
+            HoverEntityType = s.HoverEntityType;
         }
     }
 }

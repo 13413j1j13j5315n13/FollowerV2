@@ -1,11 +1,9 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
-using ExileCore;
+using ExileCore.Shared.Attributes;
 using ExileCore.Shared.Interfaces;
 using ExileCore.Shared.Nodes;
-using ExileCore.Shared.Attributes;
 using ImGuiNET;
 
 namespace FollowerV2
@@ -16,13 +14,10 @@ namespace FollowerV2
 
         #region Debug
 
-        [Menu("Debug", 1000)]
-        public EmptyNode EmptyDebug { get; set; } = new EmptyNode();
-        [Menu("Debug", "", 2, 1000)]
-        public ToggleNode Debug { get; set; } = new ToggleNode(false);
+        [Menu("Debug", 1000)] public EmptyNode EmptyDebug { get; set; } = new EmptyNode();
+        [Menu("Debug", "", 2, 1000)] public ToggleNode Debug { get; set; } = new ToggleNode(false);
         public ToggleNode VerboseDebug { get; set; } = new ToggleNode(false);
-        [Menu("Show Radius", "", 3, 1000)]
-        public ToggleNode DebugShowRadius { get; set; } = new ToggleNode(false);
+        [Menu("Show Radius", "", 3, 1000)] public ToggleNode DebugShowRadius { get; set; } = new ToggleNode(false);
         public HotkeyNode DebugGenerateOnHoverEvents { get; set; } = Keys.L;
 
         public FollowerCommandsImguiSetting FollowerCommandsImguiSettings = new FollowerCommandsImguiSetting();
@@ -31,22 +26,22 @@ namespace FollowerV2
 
         #region Main
 
-        [Menu("Main", 2000)]
-        public EmptyNode EmptyMain { get; set; } = new EmptyNode();
+        [Menu("Main", 2000)] public EmptyNode EmptyMain { get; set; } = new EmptyNode();
+
         [Menu("Profiles", "", 2, 2000)]
         public ListNode Profiles { get; set; } = new ListNode
         {
             Values = new List<string>
-        {
-            ProfilesEnum.Disable, ProfilesEnum.Follower, ProfilesEnum.Leader
-        },
+            {
+                ProfilesEnum.Disable, ProfilesEnum.Follower, ProfilesEnum.Leader
+            },
             Value = ProfilesEnum.Disable
         };
 
         public RangeNode<int> RandomClickOffset { get; set; } = new RangeNode<int>(10, 5, 100);
         public ButtonNode ResetToDefaultsButton { get; set; } = new ButtonNode();
 
-        public ListNode NearbyPlayers { get; set; } = new ListNode { Values = new List<string>(), Value = "" };
+        public ListNode NearbyPlayers { get; set; } = new ListNode {Values = new List<string>(), Value = ""};
 
         #endregion
 
@@ -135,11 +130,13 @@ namespace FollowerV2
                 ImGui.TextDisabled("Hotkey to randomly generate On Hover events");
                 ImGui.TextDisabled("This will help to see where follower will click");
                 ImGui.TextDisabled("This takes \"Random click offset\" into account");
-                DebugGenerateOnHoverEvents.Value = ImGuiExtension.HotkeySelector("Generate OnHover", DebugGenerateOnHoverEvents);
+                DebugGenerateOnHoverEvents.Value =
+                    ImGuiExtension.HotkeySelector("Generate OnHover", DebugGenerateOnHoverEvents);
 
                 ImGui.Spacing();
                 DebugShowRadius.Value = ImGuiExtension.Checkbox("Debug: show radius", DebugShowRadius);
             }
+
             ImGui.Spacing();
             Profiles.Value = ImGuiExtension.ComboBox("Profiles", Profiles.Value, Profiles.Values);
             ImGui.Spacing();
@@ -164,38 +161,47 @@ namespace FollowerV2
             if (Profiles.Value == ProfilesEnum.Follower)
                 if (ImGui.TreeNodeEx("Follower Mode Settings", collapsingHeaderFlags))
                 {
-                    FollowerModeSettings.FollowerModes.Value = ImGuiExtension.ComboBox("Follower modes", FollowerModeSettings.FollowerModes.Value, FollowerModeSettings.FollowerModes.Values);
+                    FollowerModeSettings.FollowerModes.Value = ImGuiExtension.ComboBox("Follower modes",
+                        FollowerModeSettings.FollowerModes.Value, FollowerModeSettings.FollowerModes.Values);
 
                     ImGui.Spacing();
-                    ImGui.TextDisabled("The minimum FPS threshold when the follower will do other actions than following");
-                    FollowerModeSettings.MinimumFpsThreshold.Value = ImGuiExtension.IntSlider("Minimum FPS threshold", FollowerModeSettings.MinimumFpsThreshold);
+                    ImGui.TextDisabled(
+                        "The minimum FPS threshold when the follower will do other actions than following");
+                    FollowerModeSettings.MinimumFpsThreshold.Value = ImGuiExtension.IntSlider("Minimum FPS threshold",
+                        FollowerModeSettings.MinimumFpsThreshold);
 
                     ImGui.Spacing();
                     ImGui.Spacing();
 
                     if (FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Local)
                     {
-                        ImGui.TextDisabled("This mode will NOT do any network requests and will use ONLY settings values");
+                        ImGui.TextDisabled(
+                            "This mode will NOT do any network requests and will use ONLY settings values");
                         ImGui.Spacing();
                         ImGui.Spacing();
 
-                        FollowerModeSettings.LeaderName.Value = ImGuiExtension.InputText("Leader name", FollowerModeSettings.LeaderName);
+                        FollowerModeSettings.LeaderName.Value =
+                            ImGuiExtension.InputText("Leader name", FollowerModeSettings.LeaderName);
                         ImGuiExtension.ToolTipWithText("(?)", "Provide character's name this player will follow");
 
                         if (NearbyPlayers.Values.Any())
                         {
-                            NearbyPlayers.Value = ImGuiExtension.ComboBox("Use nearby member as leader", NearbyPlayers.Value, NearbyPlayers.Values);
+                            NearbyPlayers.Value = ImGuiExtension.ComboBox("Use nearby member as leader",
+                                NearbyPlayers.Value, NearbyPlayers.Values);
                             if (!string.IsNullOrEmpty(NearbyPlayers.Value))
-                                if (ImGui.Button("Set as selected as leader")) FollowerModeSettings.UseNearbyPlayerAsLeaderButton.OnPressed();
+                                if (ImGui.Button("Set as selected as leader"))
+                                    FollowerModeSettings.UseNearbyPlayerAsLeaderButton.OnPressed();
                         }
 
-                        FollowerModeSettings.FollowerShouldWork.Value = ImGuiExtension.Checkbox("Start follower", FollowerModeSettings.FollowerShouldWork);
+                        FollowerModeSettings.FollowerShouldWork.Value =
+                            ImGuiExtension.Checkbox("Start follower", FollowerModeSettings.FollowerShouldWork);
 
                         // TODO: Implement this later
                         //FollowerModeSettings.FollowerUseCombat.Value = ImGuiExtension.Checkbox("Use Combat", FollowerModeSettings.FollowerUseCombat);
                         //ImGuiExtension.ToolTipWithText("(?)", "This player will use combat routines");
                         ImGui.Spacing();
-                        FollowerModeSettings.LeaderProximityRadius.Value = ImGuiExtension.IntSlider("Leader prox. radius", FollowerModeSettings.LeaderProximityRadius);
+                        FollowerModeSettings.LeaderProximityRadius.Value =
+                            ImGuiExtension.IntSlider("Leader prox. radius", FollowerModeSettings.LeaderProximityRadius);
                         ImGuiExtension.ToolTipWithText("(?)", "Set \"Debug: show radius\" on to see the radius");
                         ImGuiExtension.ToolTipWithText("(?)", "Color: Red");
                     }
@@ -203,28 +209,42 @@ namespace FollowerV2
                     {
                         ImGui.TextDisabled("This mode will make network requests and use ONLY values from the server");
                         ImGui.TextDisabled("All local values are disabled and will not be used");
-                        ImGui.TextDisabled("P.S. On server you might want to use something such as \"ngrok\" or \"localtunnel\"");
+                        ImGui.TextDisabled(
+                            "P.S. On server you might want to use something such as \"ngrok\" or \"localtunnel\"");
                         ImGui.TextDisabled("    if your server is outside of localhost");
                         ImGui.Spacing();
                         ImGui.Spacing();
 
-                        FollowerModeSettings.FollowerModeNetworkSettings.Url.Value = ImGuiExtension.InputText("Server URL", FollowerModeSettings.FollowerModeNetworkSettings.Url);
+                        FollowerModeSettings.FollowerModeNetworkSettings.Url.Value =
+                            ImGuiExtension.InputText("Server URL",
+                                FollowerModeSettings.FollowerModeNetworkSettings.Url);
                         ImGuiExtension.ToolTipWithText("(?)", "Provide the URL this follower will connect");
 
-                        FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests.Value = ImGuiExtension.IntSlider("Request delay", FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests);
+                        FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests.Value =
+                            ImGuiExtension.IntSlider("Request delay",
+                                FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests);
                         ImGui.Spacing();
-                        FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs.Value = ImGuiExtension.IntSlider("Request timeout ms", FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs);
+                        FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs.Value =
+                            ImGuiExtension.IntSlider("Request timeout ms",
+                                FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs);
                         ImGui.Spacing();
                         ImGui.Spacing();
-                        FollowerModeSettings.StartNetworkRequesting.Value = ImGuiExtension.Checkbox("Start network requesting", FollowerModeSettings.StartNetworkRequesting);
-                        FollowerModeSettings.StartNetworkRequestingHotkey.Value = ImGuiExtension.HotkeySelector("Hotkey to start network requesting", FollowerModeSettings.StartNetworkRequestingHotkey);
+                        FollowerModeSettings.StartNetworkRequesting.Value =
+                            ImGuiExtension.Checkbox("Start network requesting",
+                                FollowerModeSettings.StartNetworkRequesting);
+                        FollowerModeSettings.StartNetworkRequestingHotkey.Value = ImGuiExtension.HotkeySelector(
+                            "Hotkey to start network requesting", FollowerModeSettings.StartNetworkRequestingHotkey);
                         ImGui.Spacing();
                         ImGui.Spacing();
-                        ImGui.TextDisabled("The next hotkey will be used for moving. Follower will click it after hovering");
-                        FollowerModeSettings.MoveHotkey.Value = ImGuiExtension.HotkeySelector("Move hotkey", FollowerModeSettings.MoveHotkey);
+                        ImGui.TextDisabled(
+                            "The next hotkey will be used for moving. Follower will click it after hovering");
+                        FollowerModeSettings.MoveHotkey.Value =
+                            ImGuiExtension.HotkeySelector("Move hotkey", FollowerModeSettings.MoveHotkey);
                         ImGui.Spacing();
                         ImGui.TextDisabled("The delay to \"sleep\" between following logic iterations");
-                        FollowerModeSettings.MoveLogicCooldown.Value = ImGuiExtension.IntSlider("Following logic cooldown", FollowerModeSettings.MoveLogicCooldown);
+                        FollowerModeSettings.MoveLogicCooldown.Value =
+                            ImGuiExtension.IntSlider("Following logic cooldown",
+                                FollowerModeSettings.MoveLogicCooldown);
                     }
 
                     ImGui.Spacing();
@@ -234,7 +254,8 @@ namespace FollowerV2
             if (Profiles.Value == ProfilesEnum.Leader)
                 if (ImGui.TreeNodeEx("Leader Mode Settings", collapsingHeaderFlags))
                 {
-                    FollowerModeSettings.FollowerModes.Value = ImGuiExtension.ComboBox("Follower modes", FollowerModeSettings.FollowerModes.Value, FollowerModeSettings.FollowerModes.Values);
+                    FollowerModeSettings.FollowerModes.Value = ImGuiExtension.ComboBox("Follower modes",
+                        FollowerModeSettings.FollowerModes.Value, FollowerModeSettings.FollowerModes.Values);
 
                     if (FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Local)
                     {
@@ -247,20 +268,28 @@ namespace FollowerV2
                         ImGui.TextDisabled($"   hostname: {LeaderModeSettings.ServerHostname.Value}");
                         ImGui.Spacing();
                         ImGui.Spacing();
-                        LeaderModeSettings.LeaderNameToPropagate.Value = ImGuiExtension.InputText("Leader FollowerName To Propagate", LeaderModeSettings.LeaderNameToPropagate);
+                        LeaderModeSettings.LeaderNameToPropagate.Value =
+                            ImGuiExtension.InputText("Leader FollowerName To Propagate",
+                                LeaderModeSettings.LeaderNameToPropagate);
                         ImGui.Spacing();
 
                         if (ImGui.Button("Set myself as leader")) LeaderModeSettings.SetMyselfAsLeader.OnPressed();
 
                         ImGui.Spacing();
-                        LeaderModeSettings.StartServer.Value = ImGuiExtension.Checkbox("Start Server Listening", LeaderModeSettings.StartServer);
+                        LeaderModeSettings.StartServer.Value = ImGuiExtension.Checkbox("Start Server Listening",
+                            LeaderModeSettings.StartServer);
 
                         ImGui.Spacing();
-                        LeaderModeSettings.PropagateWorkingOfFollowers.Value = ImGuiExtension.Checkbox("Propagate working of followers", LeaderModeSettings.PropagateWorkingOfFollowers);
-                        LeaderModeSettings.PropagateWorkingOfFollowersHotkey.Value = ImGuiExtension.HotkeySelector("Hotkey to propagate working of follower", LeaderModeSettings.PropagateWorkingOfFollowersHotkey);
+                        LeaderModeSettings.PropagateWorkingOfFollowers.Value = ImGuiExtension.Checkbox(
+                            "Propagate working of followers", LeaderModeSettings.PropagateWorkingOfFollowers);
+                        LeaderModeSettings.PropagateWorkingOfFollowersHotkey.Value =
+                            ImGuiExtension.HotkeySelector("Hotkey to propagate working of follower",
+                                LeaderModeSettings.PropagateWorkingOfFollowersHotkey);
                         ImGui.Spacing();
                         ImGui.Spacing();
-                        LeaderModeSettings.LeaderProximityRadiusToPropagate.Value = ImGuiExtension.IntSlider("Leader proximity radius", LeaderModeSettings.LeaderProximityRadiusToPropagate);
+                        LeaderModeSettings.LeaderProximityRadiusToPropagate.Value =
+                            ImGuiExtension.IntSlider("Leader proximity radius",
+                                LeaderModeSettings.LeaderProximityRadiusToPropagate);
                         ImGuiExtension.ToolTipWithText("(?)", "Set \"Debug: show radius\" on to see the radius");
                         ImGuiExtension.ToolTipWithText("(?)", "Color: Yellow");
 
@@ -268,7 +297,9 @@ namespace FollowerV2
                         ImGui.Spacing();
                         ImGui.TextDisabled("The minimum FPS threshold when followers will start other activities");
                         ImGui.TextDisabled("   than just following");
-                        LeaderModeSettings.MinimumFpsThresholdToPropagate.Value = ImGuiExtension.IntSlider("Minimum FPS threshold", LeaderModeSettings.MinimumFpsThresholdToPropagate);
+                        LeaderModeSettings.MinimumFpsThresholdToPropagate.Value =
+                            ImGuiExtension.IntSlider("Minimum FPS threshold",
+                                LeaderModeSettings.MinimumFpsThresholdToPropagate);
                         ImGuiExtension.ToolTipWithText("(?)", "Minimum FPS threshold to propagate");
 
                         ImGui.Spacing();
@@ -280,37 +311,44 @@ namespace FollowerV2
                             ImGui.Spacing();
                             ImGui.TextDisabled("Add here new slaves to command them using the server");
                             ImGui.Spacing();
-                            LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName.Value = ImGuiExtension.InputText("Slave's name", LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName);
+                            LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName.Value =
+                                ImGuiExtension.InputText("Slave's name",
+                                    LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName);
                             ImGui.Spacing();
-                            if (ImGui.Button("Add new slave")) LeaderModeSettings.NewFollowerCommandClassSetting.AddNewFollowerButton.OnPressed();
+                            if (ImGui.Button("Add new slave"))
+                                LeaderModeSettings.NewFollowerCommandClassSetting.AddNewFollowerButton.OnPressed();
                             ImGui.Spacing();
                             ImGui.Spacing();
-                            NearbyPlayers.Value = ImGuiExtension.ComboBox("Use nearby player's name", NearbyPlayers.Value, NearbyPlayers.Values);
+                            NearbyPlayers.Value = ImGuiExtension.ComboBox("Use nearby player's name",
+                                NearbyPlayers.Value, NearbyPlayers.Values);
                             ImGui.Spacing();
-                            if (ImGui.Button("Set selected value")) LeaderModeSettings.NewFollowerCommandClassSetting.UseNearbyPlayerNameButton.OnPressed();
+                            if (ImGui.Button("Set selected value"))
+                                LeaderModeSettings.NewFollowerCommandClassSetting.UseNearbyPlayerNameButton.OnPressed();
                             ImGui.Spacing();
-                            
                         }
 
                         if (LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.Any())
                             foreach (var follower in LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet)
-                                if (ImGui.TreeNodeEx($"Follower \"{follower.FollowerName}\" settings##{follower.FollowerName}"))
+                                if (ImGui.TreeNodeEx(
+                                    $"Follower \"{follower.FollowerName}\" settings##{follower.FollowerName}"))
                                 {
                                     var imguiId = follower.FollowerName;
 
-                                    ImGui.TextDisabled($"****** Other settings ******");
+                                    ImGui.TextDisabled("****** Other settings ******");
                                     ImGui.Spacing();
                                     ImGui.Spacing();
-                                    follower.ShouldLevelUpGems = ImGuiExtension.Checkbox($"Level up gems##{imguiId}", follower.ShouldLevelUpGems);
+                                    follower.ShouldLevelUpGems = ImGuiExtension.Checkbox($"Level up gems##{imguiId}",
+                                        follower.ShouldLevelUpGems);
 
-                                    ImGui.TextDisabled($"****** Skill settings ******");
-                                    if (ImGui.Button($"Add new skill##{follower.FollowerName}")) follower.AddNewEmptySkill();
+                                    ImGui.TextDisabled("****** Skill settings ******");
+                                    if (ImGui.Button($"Add new skill##{follower.FollowerName}"))
+                                        follower.AddNewEmptySkill();
                                     ImGui.Spacing();
                                     ImGui.Spacing();
 
                                     foreach (var skill in follower.FollowerSkills)
                                     {
-                                        string skillId = imguiId + skill.Id;
+                                        var skillId = imguiId + skill.Id;
 
                                         ImGui.TextDisabled($"------ Skill (id: {skill.Id}) ------");
 
@@ -321,18 +359,26 @@ namespace FollowerV2
                                         if (ImGui.Button($"Remove##{skillId}")) follower.RemoveSkill(skill.Id);
 
                                         ImGui.Spacing();
-                                        skill.Hotkey = ImGuiExtension.HotkeySelector($"Hotkey: {skill.Hotkey}##{skillId}", skill.Hotkey);
+                                        skill.Hotkey =
+                                            ImGuiExtension.HotkeySelector($"Hotkey: {skill.Hotkey}##{skillId}",
+                                                skill.Hotkey);
                                         ImGui.Spacing();
                                         ImGui.SliderInt($"Priority##{skillId}", ref skill.Priority, 1, 5);
                                         ImGui.Spacing();
-                                        skill.IsMovingSkill = ImGuiExtension.Checkbox($"Is moving skill##{skillId}", skill.IsMovingSkill);
+                                        ImGui.SliderInt($"Skill cooldown in ms##{skillId}", ref skill.CooldownMs, 100,
+                                            10000);
                                         ImGui.Spacing();
-                                        ImGui.SliderInt($"Skill cooldown in ms##{skillId}", ref skill.CooldownMs, 100, 10000);
+                                        skill.IsMovingSkill = ImGuiExtension.Checkbox($"Is moving skill##{skillId}", skill.IsMovingSkill);
                                         ImGui.Spacing();
 
                                         if (!skill.IsMovingSkill)
                                         {
-                                            ImGui.SliderInt($"Max range to monsters##{skillId}", ref skill.MaxRangeToMonsters, 10, 200);
+                                            skill.HoverEntityType = ImGuiExtension.ComboBox($"Hover entity type##{skillId}",
+                                                skill.HoverEntityType, FollowerSkillHoverEntityType.GetAllAsList());
+                                            ImGui.Spacing();
+                                            ImGui.SliderInt($"Max range##{skillId}",
+                                                ref skill.MaxRange, 10, 200);
+                                            ImGuiExtension.ToolTipWithText("(?)", "Range to monsters, range to corpse etc.");
                                             ImGui.Spacing();
                                         }
                                     }
@@ -344,13 +390,18 @@ namespace FollowerV2
 
                         if (ImGui.TreeNodeEx("Advanced leader mode settings"))
                         {
-                            ImGui.TextDisabled("Remember to restart the server if you have changed the port or the hostname");
-                            ImGui.TextDisabled("    run \"netsh http add urlacl url=http://HOSTNAME:PORT/\" user=YOUR_USER");
-                            ImGui.TextDisabled("    example \"netsh http add urlacl url=http://+:4412/\" user=YOUR_USER");
+                            ImGui.TextDisabled(
+                                "Remember to restart the server if you have changed the port or the hostname");
+                            ImGui.TextDisabled(
+                                "    run \"netsh http add urlacl url=http://HOSTNAME:PORT/\" user=YOUR_USER");
+                            ImGui.TextDisabled(
+                                "    example \"netsh http add urlacl url=http://+:4412/\" user=YOUR_USER");
                             ImGui.TextDisabled("        if you have changed your hostname");
                             ImGui.TextDisabled("    allow the inbound connection on the port in firewall as well");
-                            LeaderModeSettings.ServerHostname.Value = ImGuiExtension.InputText("Server Hostname", LeaderModeSettings.ServerHostname);
-                            LeaderModeSettings.ServerPort.Value = ImGuiExtension.InputText("Server Port", LeaderModeSettings.ServerPort);
+                            LeaderModeSettings.ServerHostname.Value =
+                                ImGuiExtension.InputText("Server Hostname", LeaderModeSettings.ServerHostname);
+                            LeaderModeSettings.ServerPort.Value =
+                                ImGuiExtension.InputText("Server Port", LeaderModeSettings.ServerPort);
                             ImGui.Spacing();
                             ImGui.TextDisabled("Server management");
                             ImGui.Spacing();
@@ -369,19 +420,6 @@ namespace FollowerV2
         }
     }
 
-    public class ProfilesEnum
-    {
-        public static string Disable = "disable";
-        public static string Follower = "follower";
-        public static string Leader = "leader";
-    }
-
-    public class FollowerNetworkActivityModeEnum
-    {
-        public static string Local = "local";
-        public static string Network = "network";
-    }
-
     public class FollowerModeSetting
     {
         public EmptyNode EmptyFollower { get; set; } = new EmptyNode();
@@ -395,7 +433,8 @@ namespace FollowerV2
 
         public ListNode FollowerModes { get; set; } = new ListNode
         {
-            Values = new List<string> {
+            Values = new List<string>
+            {
                 FollowerNetworkActivityModeEnum.Local,
                 FollowerNetworkActivityModeEnum.Network
             },
@@ -455,6 +494,16 @@ namespace FollowerV2
         public ToggleNode NoResize { get; set; } = new ToggleNode(false);
     }
 
+    public class ProfilesEnum
+    {
+        public static string Disable = "disable";
+        public static string Follower = "follower";
+        public static string Leader = "leader";
+    }
 
-
+    public class FollowerNetworkActivityModeEnum
+    {
+        public static string Local = "local";
+        public static string Network = "network";
+    }
 }
