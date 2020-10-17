@@ -296,27 +296,29 @@ namespace FollowerV2
 
                                     foreach (var skill in follower.FollowerSkills)
                                     {
+                                        string skillId = imguiId + skill.Id;
+
                                         ImGui.TextDisabled($"------ Skill (id: {skill.Id}) ------");
 
-                                        skill.Enable = ImGuiExtension.Checkbox($"Enable##{imguiId}", skill.Enable);
+                                        skill.Enable = ImGuiExtension.Checkbox($"Enable##{skillId}", skill.Enable);
                                         ImGui.SameLine();
                                         ImGui.TextDisabled("    ");
                                         ImGui.SameLine();
-                                        if (ImGui.Button($"Remove##{imguiId}")) follower.RemoveSkill(skill.Id);
+                                        if (ImGui.Button($"Remove##{skillId}")) follower.RemoveSkill(skill.Id);
 
                                         ImGui.Spacing();
-                                        skill.Hotkey = ImGuiExtension.HotkeySelector($"Hotkey: {skill.Hotkey}##{imguiId}", skill.Hotkey);
+                                        skill.Hotkey = ImGuiExtension.HotkeySelector($"Hotkey: {skill.Hotkey}##{skillId}", skill.Hotkey);
                                         ImGui.Spacing();
-                                        ImGui.SliderInt($"Priority##{imguiId}", ref skill.Priority, 1, 5);
+                                        ImGui.SliderInt($"Priority##{skillId}", ref skill.Priority, 1, 5);
                                         ImGui.Spacing();
-                                        skill.IsMovingSkill = ImGuiExtension.Checkbox($"Is moving skill##{imguiId}", skill.IsMovingSkill);
+                                        skill.IsMovingSkill = ImGuiExtension.Checkbox($"Is moving skill##{skillId}", skill.IsMovingSkill);
                                         ImGui.Spacing();
-                                        ImGui.SliderInt($"Skill cooldown in ms##{imguiId}", ref skill.CooldownMs, 100, 10000);
+                                        ImGui.SliderInt($"Skill cooldown in ms##{skillId}", ref skill.CooldownMs, 100, 10000);
                                         ImGui.Spacing();
 
                                         if (!skill.IsMovingSkill)
                                         {
-                                            ImGui.SliderInt($"Max range to monsters##{imguiId}", ref skill.MaxRangeToMonsters, 10, 200);
+                                            ImGui.SliderInt($"Max range to monsters##{skillId}", ref skill.MaxRangeToMonsters, 10, 200);
                                             ImGui.Spacing();
                                         }
                                     }
