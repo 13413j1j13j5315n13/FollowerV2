@@ -229,7 +229,11 @@ namespace FollowerV2
                 return;
             }
 
-            Entity targetedEntity = GameController.EntityListWrapper.Entities
+            ICollection<Entity> entities = GetEntities();
+
+            if (entities == null) return;
+
+            Entity targetedEntity = entities
                 .Where(e => e.GetComponent<Targetable>() != null)
                 .Where(e => e.Type != EntityType.Player)
                 .Where(e => e.Type != EntityType.Monster)
@@ -290,8 +294,12 @@ namespace FollowerV2
                 new Sequence(
                     new TreeRoutine.TreeSharp.Action(x =>
                     {
-                        IEnumerable<Entity> players = GameController.Entities.Where(e => e.Type == EntityType.Player);
                         Entity leaderPlayer;
+                        IEnumerable<Entity> entities = GetEntities();
+                        if (entities == null) return;
+
+                        IEnumerable<Entity> players = entities.Where(e => e.Type == EntityType.Player);
+                        
                         try
                         {
                             leaderPlayer = players.FirstOrDefault(e =>
@@ -378,7 +386,11 @@ namespace FollowerV2
                         _followerState.SavedLastTimeNormalItemPickupDateTime = _emptyDateTime;
                         _followerState.LastTimeNormalItemPickupDateTime = _followerState.LastTimeNormalItemPickupDateTime;
 
-                        Entity entity = GameController.EntityListWrapper.Entities.FirstOrDefault(e => e.Id == _followerState.NormalItemId);
+                        ICollection<Entity> entities = GetEntities();
+
+                        if (entities == null) return TreeRoutine.TreeSharp.RunStatus.Failure;
+
+                        Entity entity = entities.FirstOrDefault(e => e.Id == _followerState.NormalItemId);
 
                         if (entity == null) return TreeRoutine.TreeSharp.RunStatus.Success;
 
@@ -1099,8 +1111,10 @@ namespace FollowerV2
             LogMsgWithVerboseDebug("Starting UpdateNearbyPlayersWork function");
             while (true)
             {
-                List<string> playerNames = GameController.EntityListWrapper
-                    .Entities.Where(e => e.Type == EntityType.Player)
+                ICollection<Entity> entities = GetEntities();
+
+                List<string> playerNames = entities
+                    .Where(e => e.Type == EntityType.Player)
                     .Where(e =>
                     {
                         string playerName = e.GetComponent<Player>().PlayerName;
@@ -1243,9 +1257,15 @@ namespace FollowerV2
 
         private List<Entity> GetEntitiesByEntityTypeAndSortByDistance(EntityType entityType, Entity entity)
         {
-            return GameController.EntityListWrapper.ValidEntitiesByType[entityType]
-                .OrderBy(o => FollowerHelpers.EntityDistance(o, entity))
-                .ToList();
+            try
+            {
+                return GameController.EntityListWrapper.ValidEntitiesByType[entityType]
+                    .OrderBy(o => FollowerHelpers.EntityDistance(o, entity))
+                    .ToList();
+            }
+            catch { }
+
+            return null;
         }
 
         private void ProcessNetworkActivityResponse(NetworkActivityObject obj)
@@ -1318,6 +1338,19 @@ namespace FollowerV2
             Settings.FollowerModeSettings.StartNetworkRequesting.Value =
                 !Settings.FollowerModeSettings.StartNetworkRequesting.Value;
         }
+
+        private ICollection<Entity> GetEntities()
+        {
+            ICollection<Entity> entities = null;
+            try
+            {
+                entities = GameController.Entities;
+            }
+            catch { }
+
+            return entities;
+        }
+
         private void DebugHoverToLeader()
         {
             HoverTo(GetLeaderEntity());
