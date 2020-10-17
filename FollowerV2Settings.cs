@@ -89,12 +89,21 @@ namespace FollowerV2
             RandomClickOffset.Value = 10;
             NearbyPlayers.Value = "";
 
+            FollowerCommandsImguiSettings.ShowWindow.Value = true;
+            FollowerCommandsImguiSettings.LockPanel.Value = false;
+            FollowerCommandsImguiSettings.NoResize.Value = false;
+
+            FollowerModeSettings.FollowerShouldWork.Value = false;
             FollowerModeSettings.LeaderName.Value = "";
             FollowerModeSettings.FollowerUseCombat.Value = false;
             FollowerModeSettings.FollowerModes.Value = FollowerNetworkActivityModeEnum.Local;
             FollowerModeSettings.LeaderProximityRadius.Value = 100;
             FollowerModeSettings.StartNetworkRequesting.Value = false;
             FollowerModeSettings.StartNetworkRequestingHotkey.Value = Keys.F3;
+            FollowerModeSettings.MoveHotkey.Value = Keys.T;
+            FollowerModeSettings.MoveLogicCooldown.Value = 50;
+            FollowerModeSettings.MinimumFpsThreshold.Value = 5;
+
             FollowerModeSettings.FollowerModeNetworkSettings.Url.Value = "";
             FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests.Value = 1000;
             FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs.Value = 3000;
@@ -102,9 +111,14 @@ namespace FollowerV2
             LeaderModeSettings.LeaderNameToPropagate.Value = "";
             LeaderModeSettings.ServerHostname.Value = "localhost";
             LeaderModeSettings.ServerPort.Value = "4412";
+            LeaderModeSettings.StartServer.Value = false;
             LeaderModeSettings.PropagateWorkingOfFollowers.Value = false;
             LeaderModeSettings.PropagateWorkingOfFollowersHotkey.Value = Keys.F4;
             LeaderModeSettings.LeaderProximityRadiusToPropagate.Value = 100;
+            LeaderModeSettings.FollowerCommandSetting = new FollowerCommandSetting();
+            LeaderModeSettings.MinimumFpsThresholdToPropagate.Value = 5;
+
+            LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName.Value = "";
         }
 
         public void DrawSettings()
