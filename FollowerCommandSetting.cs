@@ -58,6 +58,8 @@ namespace FollowerV2
 
         public bool ShouldLevelUpGems = false;
 
+        public bool Aggressive = true;
+
         public FollowerCommandsDataClass() { }
 
         public FollowerCommandsDataClass(string followerName)

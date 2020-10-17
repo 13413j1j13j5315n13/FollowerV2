@@ -365,17 +365,20 @@ namespace FollowerV2
                                         ImGui.Spacing();
                                         ImGui.SliderInt($"Priority##{skillId}", ref skill.Priority, 1, 5);
                                         ImGui.Spacing();
-                                        skill.IsMovingSkill = ImGuiExtension.Checkbox($"Is moving skill##{skillId}",
-                                            skill.IsMovingSkill);
-                                        ImGui.Spacing();
                                         ImGui.SliderInt($"Skill cooldown in ms##{skillId}", ref skill.CooldownMs, 100,
                                             10000);
+                                        ImGui.Spacing();
+                                        skill.IsMovingSkill = ImGuiExtension.Checkbox($"Is moving skill##{skillId}", skill.IsMovingSkill);
                                         ImGui.Spacing();
 
                                         if (!skill.IsMovingSkill)
                                         {
-                                            ImGui.SliderInt($"Max range to monsters##{skillId}",
-                                                ref skill.MaxRangeToMonsters, 10, 200);
+                                            skill.HoverEntityType = ImGuiExtension.ComboBox($"Hover entity type##{skillId}",
+                                                skill.HoverEntityType, FollowerSkillHoverEntityType.GetAllAsList());
+                                            ImGui.Spacing();
+                                            ImGui.SliderInt($"Max range##{skillId}",
+                                                ref skill.MaxRange, 10, 200);
+                                            ImGuiExtension.ToolTipWithText("(?)", "Range to monsters, range to corpse etc.");
                                             ImGui.Spacing();
                                         }
                                     }
@@ -415,19 +418,6 @@ namespace FollowerV2
                     //ImGui.TreePop();
                 }
         }
-    }
-
-    public class ProfilesEnum
-    {
-        public static string Disable = "disable";
-        public static string Follower = "follower";
-        public static string Leader = "leader";
-    }
-
-    public class FollowerNetworkActivityModeEnum
-    {
-        public static string Local = "local";
-        public static string Network = "network";
     }
 
     public class FollowerModeSetting
@@ -502,5 +492,18 @@ namespace FollowerV2
         public ToggleNode ShowWindow { get; set; } = new ToggleNode(true);
         public ToggleNode LockPanel { get; set; } = new ToggleNode(false);
         public ToggleNode NoResize { get; set; } = new ToggleNode(false);
+    }
+
+    public class ProfilesEnum
+    {
+        public static string Disable = "disable";
+        public static string Follower = "follower";
+        public static string Leader = "leader";
+    }
+
+    public class FollowerNetworkActivityModeEnum
+    {
+        public static string Local = "local";
+        public static string Network = "network";
     }
 }
