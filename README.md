@@ -139,6 +139,9 @@ Queuete's [ExileApi](https://github.com/Queuete/ExileApi) was able to download a
 1. Can you implement commands, such as entering an entrance or portal, locally?
 	* Only if you will tell me how to do it so that it will work at least across the local network and will not be suspicious by GGG. E.g. chat commands are bad idea because GGG can parse them and mark your accounts as suspicious.
 
+1. How can I run Path of Exile as a limited user in a virtual machine from the shared folder?
+	* Create a limited user + restrict access to the folder with PoeHUD. Hold Shift and click with right mouse on game's `PathOfExile_x64.exe`. The option `Run as different user` will appear.
+
 ## Used offsets and functions
 
 1. GameController.LeftPanel
