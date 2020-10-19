@@ -68,6 +68,7 @@ Using on Follower side:
 1. Write server URL. If using Localtunnel then it would be something like "https://testi.loca.lt". If you will use your leader's machine's IP then it will be something like "http://192.168.100.23:4412"
 1. Set request delay. If running locally I use 500 ms, with Localtunnel 1000 ms might be a good idea
 1. Click "Start network requesting" or the hotkey (F3 by default)
+1. If you want to use "/hideout NAME" typing functionality you MUST have English keyboard layout
 
 
 "Propagate working of followers" controls whether followers are working or not.
@@ -79,12 +80,17 @@ Additional ImGui window controls (hold Ctrl to display):
 	* E -> Enter entrance
 	* P -> Enter portal
 	* QIPick -> Pick quest item
+	* H -> All followers will write "/hideout NAME" into the chatbox. NAME is the follower's name
 	* Del -> Delete this user from the list
 	* Hovering over object and clicking "Ctrl+X" (e.g. Ctrl+1) will command the follower to click on that object (click on WP, pickup items etc.)
+	* Aggr -> Follower is aggressive and will attack if attack skills defined. Follower will NOT attack at all if this is off. 
+		* Useful in maps to quickly set between "follow only" and "follow and attack"
+		* E.g. follower will cast non-stop Summon Raging Spirits in a Blight map. For relocation you set this off. On a new place you set this back on.
 1. All:
 	* Entrance -> Command all to enter entrance
 	* Portal -> Command all to enter portal
 	* PickQuestItem -> Command all to pick quest items
+	* Leader's H -> All followers will write "/hideout NAME" where NAME is leader's name
 
 ## Troubleshoot
 
@@ -115,6 +121,7 @@ Do NOT send me private messages for troubleshoot questions as this reduces visib
 		* Have you configured server and client properly as described in this documentation?
 		* What is your hostname in the plugin's settings?
 		* What are your server's and client's IP addresses?
+		* Have you tried turning off your firewall? On both sides?
 		* If your hostname is not `localhost` in the plugin's settings have you run the required `netsh` command?
 		* Can you curl your server inside the machine where you run your server? E.g. does this `curl http://localhost:4412` return the JSON response? If your hostname is not `localhost` do the following commands return the JSON responses `curl http://127.0.0.1:4412` and `curl http://SERVER_MACHINE_IP:4412`?
 		* Are you behind a NAT?
@@ -141,6 +148,9 @@ Queuete's [ExileApi](https://github.com/Queuete/ExileApi) was able to download a
 
 1. How can I run Path of Exile as a limited user in a virtual machine from the shared folder?
 	* Create a limited user + restrict access to the folder with PoeHUD. Hold Shift and click with right mouse on game's `PathOfExile_x64.exe`. The option `Run as different user` will appear.
+
+1. Changing hideout two and more times in a row makes PoeHud stuck.
+	* The issue is known. Just visit any location or town and Follower will start following again.
 
 ## Used offsets and functions
 

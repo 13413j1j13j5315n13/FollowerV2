@@ -22,6 +22,12 @@ namespace FollowerV2
 
         public DateTime SavedLastTimeNormalItemPickupDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
+        public DateTime LastTimeEnterHideoutUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public DateTime SavedLastTimeEnterHideoutUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public string HideoutCharacterName { get; set; } = "";
+
         public int NormalItemId = 0;
 
         public ActionsEnum CurrentAction = ActionsEnum.Nothing;
@@ -56,5 +62,6 @@ namespace FollowerV2
         UsingPortal,
         PickingQuestItem,
         PickingNormalItem,
+        EnteringHideout
     }
 }
