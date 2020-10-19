@@ -68,6 +68,7 @@ Using on Follower side:
 1. Write server URL. If using Localtunnel then it would be something like "https://testi.loca.lt". If you will use your leader's machine's IP then it will be something like "http://192.168.100.23:4412"
 1. Set request delay. If running locally I use 500 ms, with Localtunnel 1000 ms might be a good idea
 1. Click "Start network requesting" or the hotkey (F3 by default)
+1. If you want to use "/hideout NAME" typing functionality you MUST have English keyboard layout
 
 
 "Propagate working of followers" controls whether followers are working or not.
