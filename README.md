@@ -85,12 +85,12 @@ Additional ImGui window controls (hold Ctrl to display):
 	* Hovering over object and clicking "Ctrl+X" (e.g. Ctrl+1) will command the follower to click on that object (click on WP, pickup items etc.)
 	* Aggr -> Follower is aggressive and will attack if attack skills defined. Follower will NOT attack at all if this is off. 
 		* Useful in maps to quickly set between "follow only" and "follow and attack"
-		* E.g. follower will cast non-stop Summon Raging Spirits in a Blight map, for relocation you set this off. On a new place you set this back on.
+		* E.g. follower will cast non-stop Summon Raging Spirits in a Blight map. For relocation you set this off. On a new place you set this back on.
 1. All:
 	* Entrance -> Command all to enter entrance
 	* Portal -> Command all to enter portal
 	* PickQuestItem -> Command all to pick quest items
-	* LEader's H -> All followers will write "/hideout NAME" where NAME is leader's name
+	* Leader's H -> All followers will write "/hideout NAME" where NAME is leader's name
 
 ## Troubleshoot
 
