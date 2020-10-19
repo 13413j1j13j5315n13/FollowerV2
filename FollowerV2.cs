@@ -686,12 +686,11 @@ namespace FollowerV2
                                 .Where(e => !String.IsNullOrEmpty(e.Text))
                                 .Any(e => e.Text == fullCommand);
 
-                            //pressKey(textPresent ? Keys.Enter : Keys.Escape);
                             pressKey(textPresent ? Keys.Enter : Keys.Escape);
                         }
                         else
                         {
-                            // ChatBoxRoot is not present (not offset etc.) so just click enter
+                            // ChatBoxRoot is not present (no offset etc.) so just press enter
                             pressKey(Keys.Enter);
                         }
 
