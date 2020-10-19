@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using ExileCore.PoEMemory;
+using ExileCore.PoEMemory.Elements;
 using NumericsVector2 = System.Numerics.Vector2;
 using Newtonsoft.Json;
 using ImGuiNET;
@@ -663,12 +664,48 @@ namespace FollowerV2
 
                         LogMsgWithVerboseDebug("***** Should trigger entering hideout now!");
 
-                        // TODO: Implement here!
+                        string fullCommand = $"/hideout {_followerState.HideoutCharacterName}";
+
+                        List<Keys> keys = new List<Keys>() { Keys.Enter, Keys.OemQuestion, Keys.H, Keys.I, Keys.D, Keys.E, Keys.O, Keys.U, Keys.T, Keys.Space };
+                        List<Keys> nameAsKeys = StringToKeysList(_followerState.HideoutCharacterName);
+
+                        if (nameAsKeys == null) return RunStatus.Success;
+
+                        keys.AddRange(nameAsKeys);
+
+                        foreach (Keys key in keys)
+                        {
+                            pressKey(key);
+                        }
+
+                        PoeChatElement chatBoxRoot = GameController.IngameState.IngameUi.ChatBoxRoot;
+                        if (chatBoxRoot != null && chatBoxRoot.Children != null && chatBoxRoot.Children.Any())
+                        {
+                            // If ChatBoxRoot is present we can check whether it's the text is correct
+                            bool textPresent = chatBoxRoot.Children
+                                .Where(e => !String.IsNullOrEmpty(e.Text))
+                                .Any(e => e.Text == fullCommand);
+
+                            pressKey(textPresent ? Keys.Enter : Keys.Escape);
+                        }
+                        else
+                        {
+                            // ChatBoxRoot is not present (not offset etc.) so just click enter
+                            pressKey(Keys.Enter);
+                        }
 
                         return RunStatus.Success;
                     })
                 )
             );
+
+            void pressKey(Keys key)
+            {
+                Input.KeyDown(key);
+                Thread.Sleep(50);
+                Input.KeyUp(key);
+                Thread.Sleep(100);
+            }
         }
 
         private bool HoverToEntityAction(Entity entity)
@@ -1418,6 +1455,31 @@ namespace FollowerV2
 
             return null;
         }
+
+        /*
+        * This contains a lot of limitations. Do NOT use with anything except normal numbers or characters
+        * E.g. this will translate "hideout" to List<Keys> { Keys.H, Keys.I, Keys.D, Keys.E } etc.
+        */
+        private List<Keys> StringToKeysList(string str)
+        {
+            LogMsgWithVerboseDebug($"Inside StringToKeysList, trying to parse {str} to List<Keys>");
+
+            var keys = new List<Keys>();
+
+            if (string.IsNullOrEmpty(str)) return null;
+
+            foreach (var c in str.ToCharArray().Select(e => e.ToString()).ToList())
+            {
+                Keys key;
+                var parsed = Enum.TryParse(c.ToUpper(), out key);
+                if (!parsed) return null;
+
+                keys.Add(key);
+            }
+
+            return keys;
+        }
+
 
         private void DebugHoverToLeader()
         {
