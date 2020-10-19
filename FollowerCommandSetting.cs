@@ -33,6 +33,14 @@ namespace FollowerV2
             FollowerCommandsDataClass follower = FollowerCommandsDataSet.FirstOrDefault(a => a.FollowerName == followerName);
             if (follower != null) FollowerCommandsDataSet.Remove(follower);
         }
+
+        public void SetFollowersToEnterHideout(string hideoutCharacterName)
+        {
+            FollowerCommandsDataSet.ForEach(f =>
+            {
+                f.SetEnterHideout(hideoutCharacterName);
+            });
+        }
     }
 
     public class FollowerCommandsDataClass
@@ -44,6 +52,8 @@ namespace FollowerV2
 
         public string FollowerName { get; set; }
 
+        public string HideoutCharacterName { get; set; }
+
         public DateTime LastTimeEntranceUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         public DateTime LastTimePortalUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -51,6 +61,8 @@ namespace FollowerV2
         public DateTime LastTimeQuestItemPickupDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         public DateTime LastTimeNormalItemPickupDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public DateTime LastTimeEnterHideoutUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         public int NormalItemId = 0;
 
@@ -89,6 +101,16 @@ namespace FollowerV2
 
             this.LastTimeQuestItemPickupDateTime = DateTime.UtcNow;
             Task.Delay(_taskDelayMs).ContinueWith(t => LastTimeQuestItemPickupDateTime = _emptyDateTime);
+        }
+
+        public void SetEnterHideout(string hideoutCharacterName)
+        {
+            if (this.LastTimeEnterHideoutUsedDateTime != _emptyDateTime || String.IsNullOrEmpty(hideoutCharacterName)) return;
+
+            this.LastTimeEnterHideoutUsedDateTime = DateTime.UtcNow;
+            this.HideoutCharacterName = hideoutCharacterName;
+
+            Task.Delay(_taskDelayMs).ContinueWith(t => LastTimeEnterHideoutUsedDateTime = _emptyDateTime);
         }
 
         public void SetPickupNormalItem(int itemId)
