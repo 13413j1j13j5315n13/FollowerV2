@@ -679,13 +679,14 @@ namespace FollowerV2
                         }
 
                         PoeChatElement chatBoxRoot = GameController.IngameState.IngameUi.ChatBoxRoot;
-                        if (chatBoxRoot != null && chatBoxRoot.Children != null && chatBoxRoot.Children.Any())
+                        if (chatBoxRoot?.Children != null && chatBoxRoot.Children.Any())
                         {
-                            // If ChatBoxRoot is present we can check whether it's the text is correct
+                            // If ChatBoxRoot is present we can check whether the text is correct
                             bool textPresent = chatBoxRoot.Children
                                 .Where(e => !String.IsNullOrEmpty(e.Text))
                                 .Any(e => e.Text == fullCommand);
 
+                            //pressKey(textPresent ? Keys.Enter : Keys.Escape);
                             pressKey(textPresent ? Keys.Enter : Keys.Escape);
                         }
                         else
