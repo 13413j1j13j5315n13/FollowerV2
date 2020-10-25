@@ -152,6 +152,15 @@ Queuete's [ExileApi](https://github.com/Queuete/ExileApi) was able to download a
 1. Changing hideout two and more times in a row makes PoeHud stuck.
 	* The issue is known. Just visit any location or town and Follower will start following again.
 
+1. I just configured something somewhere on my leader and a client in VM, I guess I run localtunnel, and when I run some "cmd" and "curl" command I get some response. Please help!
+	* To be able to help we first need to know what you've done and how you've configured everything. The more detail you can give the better. Copy questions from Troubleshoot ---> point 4, and try to answer each of them. When you have the answers you can either create a new issue or post in the OwnedCore forum thread.
+
+1. How can I add a new skill for my follower?
+	* First, add a new slave under `Follower command settings`
+	* A new tree will be available, e.g. `Follower "Test" settings`
+	* Add the required skills. You can refer to the following picture
+![](docs/Add_skills_pic.png?raw=true)
+
 ## Used offsets and functions
 
 1. GameController.LeftPanel
