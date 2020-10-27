@@ -13,6 +13,7 @@ The purpose of this plugin is to enable your other characters to follow your lea
 ### Is this safe?
 
 We never know. One person has reported that his aurabot has been banned. The aurabot was used only with this plugin.
+
 GGG can see many things. E.g. that you run other characters in VMs, that you have the same IP, that other characters are only online when your main character is online, that they are always together in a party etc.
 There is no "right" way to use this and not get a ban. But keep the rule of thumb: the more it looks like a real player the less the chance to get a ban.
 
