@@ -7,8 +7,14 @@ OwnedCore link: https://www.ownedcore.com/forums/mmo/path-of-exile/poe-bots-prog
 I want to introduce something I have been working on lately and using since Heist league start.
 The purpose of this plugin is to enable your other characters to follow your leader. Useful for purposes such as:
 1. Leveling many characters at the same time. Personally I leveled a summoner alone and then using Player Scaling leveled 7 characters to 70+ (5 chars + summoner and separately 2 chars + summoner).
-2. Mapping with aurabots and curse bots.
+2. Mapping with aurabots, curse bots, and other chars.
 3. Raising difficulty and reward of instances/maps without manually clicking on portals or entrances.
+
+### Is this safe?
+
+We never know. One person has reported that his aurabot has been banned. The aurabot was used only with this plugin.
+GGG can see many things. E.g. that you run other characters in VMs, that you have the same IP, that other characters are only online when your main character is online, that they are always together in a party etc.
+There is no "right" way to use this and not get a ban. But keep the rule of thumb: the more it looks like a real player the less the chance to get a ban.
 
 ## Features
 
