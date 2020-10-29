@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
 namespace FollowerV2
 {
@@ -15,7 +11,7 @@ namespace FollowerV2
 
         public static List<string> GetAllAsList()
         {
-            return new List<string>()
+            return new List<string>
             {
                 Monster,
                 Player,

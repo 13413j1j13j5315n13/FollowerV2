@@ -33,7 +33,40 @@ Leader commands followers. You can propagate actions such as:
 
 Follower listens to the HTTP server and depending on action propagated does what Leader commanded.
 
-## Server / Client
+## File protocol configuration
+
+This is the use case for leader running natively and followers in VM, e.g. Vmware Workstation 16 on the same computer.
+
+On leader side:
+1. Set Profile as "leader".
+1. Set "Follower modes" as "file".
+1. Open "Advanced leader mode settings"
+1. Set the full path where the file will be written. E.g. "D:\Games\test_shared\test.txt"
+1. Enable "Start File Writing" checkbox
+1. Confirm that you have the file created and it contains the JSON output.
+
+On follower side:
+1. Share the file's folder to your VMs. E.g. "D:\Games\test_shared" should be shared in every VM.
+	* I strongly recommend enabling "Map as a network drive in Windows guests"
+1. Set Profile as "follower".
+1. Set "Follower modes" as "file".
+1. Set "File path" to the **FULL** path to the file.
+	* Remember that inside the VM the path will be different than on the leader.
+	* Probably the mounted folder on leader side "D:\Games\test_shared" will be mounted to something like "Z:\test_shared"
+	* The full path to set is e.g. "Z:\test_shared\test.txt"
+1. Double check that inside the VM the full file's path is correct. 
+	* You can access the file from Windows Explorer without any issues.
+	* It's pointing to the shared folder. 
+	* It's not just "Z:\test_shared"
+	* It's not the leader's file path
+	* **It's the full "Z:\test_shared\test.txt"**
+	* Have I stressed enough that leader's path and the path inside VMs will be different?
+1. Enable "Start requesting".
+
+That should be it.
+
+
+## Server / Client protocol configuration
 
 When using Leader profile and Network mode Follower plugin will start a server (HttpListener) on port 4412. By default the prefix will be localhost.
 
@@ -44,18 +77,30 @@ With Localtunnel you can use `localhost` as hostname but you will need to specif
 
 The whole command I was using `lt --local-host localhost --port 4412 --subdomain testi` and then you can test `curl https://testi.loca.lt`
 
-## Usage
+P.S. Please notice that **for 99% use cases you DO NOT (DOOOOO NOOOOOOOOOOTTTTTTT) need Ngrok or Localtunnel**. If something does not work don't try to use Ngrok or Localtunnel thinking that it will help. Ngrok or Localtunnel will make everything more complicated so stay away from them if you don't clearly understand why you would need them.
 
-Using on Leader side:
+Configuration on leader side
 1. Activate the plugin
 1. Set "leader" profile 
 1. Open "Leader Mode Settings" tree
 1. Select "network" mode
-1. Click "Set myself as leader" button or write your player name yourself
 1. Click "Start Server Listening"
-1. Click "Propagate working of followers" or click the hotkey (F4 by default)
 1. IF you want to change the hostname from "localhost" then open "Advanced leader mode settings" and change to something like "+". Restart PoeHUD (restarting the server is not very reliable right now...)
 
+Configuring on follower side
+1. Set the profile as "Follower"
+1. Click "Follower mode settings"
+1. Set mode as "network"
+1. Write server URL. If using Localtunnel then it would be something like "https://testi.loca.lt". If you will use your leader's machine's IP then it will be something like "http://192.168.100.23:4412"
+1. Set request delay. If running locally I use 500 ms, with Localtunnel 1000 ms might be a good idea
+1. Click "Start network requesting" or the hotkey (F3 by default)
+
+## Other configuration
+
+Configuring on Leader side:
+
+1. Click "Set myself as leader" button or write your player name yourself
+1. Click "Propagate working of followers" or click the hotkey (F4 by default)
 
 For controlling entering entrances, portal, or clicking on items on leader side you need to:
 
@@ -69,12 +114,6 @@ This will add the slave's name to the additional ImGui box. Now you can control 
 
 Using on Follower side:
 1. Assign "Move" to "T" hotkey!
-1. Set the profile as "Follower"
-1. Click "Follower mode settings"
-1. Set mode as "network"
-1. Write server URL. If using Localtunnel then it would be something like "https://testi.loca.lt". If you will use your leader's machine's IP then it will be something like "http://192.168.100.23:4412"
-1. Set request delay. If running locally I use 500 ms, with Localtunnel 1000 ms might be a good idea
-1. Click "Start network requesting" or the hotkey (F3 by default)
 1. If you want to use "/hideout NAME" typing functionality you MUST have English keyboard layout
 
 

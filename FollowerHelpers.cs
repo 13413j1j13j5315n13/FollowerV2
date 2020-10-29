@@ -4,7 +4,7 @@ using SharpDX;
 
 namespace FollowerV2
 {
-    class FollowerHelpers
+    internal class FollowerHelpers
     {
         public static float EntityDistance(Entity entity, Entity player)
         {

@@ -1,21 +1,16 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using ExileCore;
-using ExileCore.PoEMemory.Components;
 using ExileCore.PoEMemory.MemoryObjects;
-using ExileCore.Shared;
-using ExileCore.Shared.Cache;
-using ExileCore.Shared.Enums;
 using SharpDX;
 
 namespace FollowerV2
 {
-    class DebugHelper
+    internal class DebugHelper
     {
-
-        public static void DrawEllipseToWorld(Camera camera, Graphics graphics, Vector3 vector3Pos, int radius, int points, int lineWidth, Color color)
+        public static void DrawEllipseToWorld(Camera camera, Graphics graphics, Vector3 vector3Pos, int radius,
+            int points, int lineWidth, Color color)
         {
             //var camera = GameController.Game.IngameState.Camera;
             var plottedCirclePoints = new List<Vector3>();
@@ -23,9 +18,9 @@ namespace FollowerV2
             for (var i = 0; i < points; i++)
             {
                 var angle = slice * i;
-                var x = (decimal)vector3Pos.X + decimal.Multiply(radius, (decimal)Math.Cos(angle));
-                var y = (decimal)vector3Pos.Y + decimal.Multiply(radius, (decimal)Math.Sin(angle));
-                plottedCirclePoints.Add(new Vector3((float)x, (float)y, vector3Pos.Z));
+                var x = (decimal) vector3Pos.X + decimal.Multiply(radius, (decimal) Math.Cos(angle));
+                var y = (decimal) vector3Pos.Y + decimal.Multiply(radius, (decimal) Math.Sin(angle));
+                plottedCirclePoints.Add(new Vector3((float) x, (float) y, vector3Pos.Z));
             }
 
             for (var i = 0; i < plottedCirclePoints.Count; i++)

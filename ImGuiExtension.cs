@@ -6,7 +6,6 @@ using System.Windows.Forms;
 using ExileCore;
 using ExileCore.Shared.Nodes;
 using ImGuiNET;
-using SharpDX;
 using ImGuiVector2 = System.Numerics.Vector2;
 using ImGuiVector4 = System.Numerics.Vector4;
 
@@ -58,14 +57,16 @@ namespace FollowerV2
             return refValue;
         }
 
-        public static float FloatSlider(string labelString, string sliderString, float value, float minValue, float maxValue)
+        public static float FloatSlider(string labelString, string sliderString, float value, float minValue,
+            float maxValue)
         {
             var refValue = value;
             ImGui.SliderFloat(labelString, ref refValue, minValue, maxValue, $"{sliderString}: {value}", 1f);
             return refValue;
         }
 
-        public static float FloatSlider(string labelString, string sliderString, float value, float minValue, float maxValue, float power)
+        public static float FloatSlider(string labelString, string sliderString, float value, float minValue,
+            float maxValue, float power)
         {
             var refValue = value;
             ImGui.SliderFloat(labelString, ref refValue, minValue, maxValue, $"{sliderString}: {value}", power);
@@ -89,14 +90,16 @@ namespace FollowerV2
         public static float FloatSlider(string labelString, string sliderString, RangeNode<float> setting)
         {
             var refValue = setting.Value;
-            ImGui.SliderFloat(labelString, ref refValue, setting.Min, setting.Max, $"{sliderString}: {setting.Value}", 1f);
+            ImGui.SliderFloat(labelString, ref refValue, setting.Min, setting.Max, $"{sliderString}: {setting.Value}",
+                1f);
             return refValue;
         }
 
         public static float FloatSlider(string labelString, string sliderString, RangeNode<float> setting, float power)
         {
             var refValue = setting.Value;
-            ImGui.SliderFloat(labelString, ref refValue, setting.Min, setting.Max, $"{sliderString}: {setting.Value}", power);
+            ImGui.SliderFloat(labelString, ref refValue, setting.Min, setting.Max, $"{sliderString}: {setting.Value}",
+                power);
             return refValue;
         }
 
@@ -122,17 +125,17 @@ namespace FollowerV2
         }
 
         // Hotkey Selector
-        public static IEnumerable<Keys> KeyCodes() => Enum.GetValues(typeof(Keys)).Cast<Keys>();
+        public static IEnumerable<Keys> KeyCodes()
+        {
+            return Enum.GetValues(typeof(Keys)).Cast<Keys>();
+        }
 
         // Tooltip Hover
         public static void ToolTipWithText(string text, string desc)
         {
             ImGui.SameLine();
             ImGui.TextDisabled(text);
-            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AnyWindow))
-            {
-                ImGui.SetTooltip(desc);
-            }
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AnyWindow)) ImGui.SetTooltip(desc);
         }
 
         public static int ComboBox(string sideLabel, int currentSelectedItem, List<string> objectList)
@@ -141,7 +144,9 @@ namespace FollowerV2
 
             return currentSelectedItem;
         }
-        public static string ComboBox(string sideLabel, string currentSelectedItem, List<string> objectList, ImGuiComboFlags comboFlags = ImGuiComboFlags.HeightRegular)
+
+        public static string ComboBox(string sideLabel, string currentSelectedItem, List<string> objectList,
+            ImGuiComboFlags comboFlags = ImGuiComboFlags.HeightRegular)
         {
             if (ImGui.BeginCombo(sideLabel, currentSelectedItem, comboFlags))
             {
@@ -158,7 +163,9 @@ namespace FollowerV2
 
             return currentSelectedItem;
         }
-        public static string ComboBox(string sideLabel, string currentSelectedItem, List<string> objectList, out bool didChange, ImGuiComboFlags comboFlags = ImGuiComboFlags.HeightRegular)
+
+        public static string ComboBox(string sideLabel, string currentSelectedItem, List<string> objectList,
+            out bool didChange, ImGuiComboFlags comboFlags = ImGuiComboFlags.HeightRegular)
         {
             if (ImGui.BeginCombo(sideLabel, currentSelectedItem, comboFlags))
             {
@@ -171,6 +178,7 @@ namespace FollowerV2
                         didChange = true;
                         return objectList[n];
                     }
+
                     if (isSelected) ImGui.SetItemDefaultFocus();
                 }
 
@@ -184,11 +192,12 @@ namespace FollowerV2
         public static string InputText(string label, string currentValue, uint maxLength, ImGuiInputTextFlags flags)
         {
             byte[] buff = new byte[maxLength];
-            if (!String.IsNullOrEmpty(currentValue))
+            if (!string.IsNullOrEmpty(currentValue))
             {
                 byte[] currentValueBytes = Encoding.UTF8.GetBytes(currentValue);
                 Array.Copy(currentValueBytes, buff, currentValueBytes.Length);
             }
+
             ImGui.InputText(label, buff, maxLength, flags);
             return Encoding.Default.GetString(buff).TrimEnd('\0');
         }
@@ -201,7 +210,7 @@ namespace FollowerV2
 
         public static Keys HotkeySelector(string buttonName, Keys currentKey)
         {
-            string msg = $"{buttonName } - {currentKey}";
+            string msg = $"{buttonName} - {currentKey}";
 
             var open = true;
             if (ImGui.Button(msg))
@@ -210,7 +219,7 @@ namespace FollowerV2
                 open = true;
             }
 
-            if (ImGui.BeginPopupModal(msg, ref open, (ImGuiWindowFlags)35))
+            if (ImGui.BeginPopupModal(msg, ref open, (ImGuiWindowFlags) 35))
             {
                 if (Input.GetKeyState(Keys.Escape))
                 {
@@ -221,10 +230,10 @@ namespace FollowerV2
                 {
                     foreach (var key in Enum.GetValues(typeof(Keys)))
                     {
-                        var keyState = Input.GetKeyState((Keys)key);
+                        var keyState = Input.GetKeyState((Keys) key);
                         if (keyState)
                         {
-                            currentKey = (Keys)key;
+                            currentKey = (Keys) key;
                             ImGui.CloseCurrentPopup();
                             break;
                         }

@@ -1,13 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Newtonsoft.Json;
-
-namespace FollowerV2
+﻿namespace FollowerV2
 {
-    class NetworkActivityObject
+    internal class NetworkActivityObject
     {
         public bool FollowersShouldWork { get; set; }
         public string LeaderName { get; set; }
