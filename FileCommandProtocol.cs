@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.IO;
 using Newtonsoft.Json;
 
 namespace FollowerV2
 {
-    class FileCommandProtocol : ICommandProtocol
+    internal class FileCommandProtocol : ICommandProtocol
     {
         private readonly FollowerV2Settings _followerSettings;
 

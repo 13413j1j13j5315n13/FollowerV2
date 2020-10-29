@@ -1,7 +1,5 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Net;
-using Newtonsoft.Json;
 
 namespace FollowerV2
 {
@@ -32,15 +30,17 @@ namespace FollowerV2
             request.Method = "GET";
             request.Timeout = timeoutMs;
             request.ReadWriteTimeout = timeoutMs;
-            
+
             try
             {
-                var response = (HttpWebResponse)request.GetResponse();
+                var response = (HttpWebResponse) request.GetResponse();
                 var stream = response.GetResponseStream();
                 var reader = new StreamReader(stream);
                 returnVal = reader.ReadToEnd();
             }
-            catch {}
+            catch
+            {
+            }
 
             return returnVal;
         }

@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using Newtonsoft.Json;
 
 namespace FollowerV2
@@ -19,10 +17,10 @@ namespace FollowerV2
 
             followerName = followerName.Trim();
 
-            bool contains = FollowerCommandsDataSet.Select(a => a.FollowerName == followerName).FirstOrDefault();
+            var contains = FollowerCommandsDataSet.Select(a => a.FollowerName == followerName).FirstOrDefault();
             if (contains) return;
 
-            FollowerCommandsDataClass follower = new FollowerCommandsDataClass(followerName);
+            var follower = new FollowerCommandsDataClass(followerName);
             FollowerCommandsDataSet.Add(follower);
         }
 
@@ -30,25 +28,38 @@ namespace FollowerV2
         {
             if (string.IsNullOrEmpty(followerName)) return;
 
-            FollowerCommandsDataClass follower = FollowerCommandsDataSet.FirstOrDefault(a => a.FollowerName == followerName);
+            var follower = FollowerCommandsDataSet.FirstOrDefault(a => a.FollowerName == followerName);
             if (follower != null) FollowerCommandsDataSet.Remove(follower);
         }
 
         public void SetFollowersToEnterHideout(string hideoutCharacterName)
         {
-            FollowerCommandsDataSet.ForEach(f =>
-            {
-                f.SetEnterHideout(hideoutCharacterName);
-            });
+            FollowerCommandsDataSet.ForEach(f => { f.SetEnterHideout(hideoutCharacterName); });
         }
     }
 
     public class FollowerCommandsDataClass
     {
-        [JsonIgnore] private int _taskDelayMs = 2000;
+        [JsonIgnore] private readonly DateTime _emptyDateTime = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        [JsonIgnore]
-        private readonly DateTime _emptyDateTime = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        [JsonIgnore] private readonly int _taskDelayMs = 2000;
+
+        public bool Aggressive = true;
+
+        public List<FollowerSkill> FollowerSkills = new List<FollowerSkill>();
+
+        public int NormalItemId;
+
+        public bool ShouldLevelUpGems = false;
+
+        public FollowerCommandsDataClass()
+        {
+        }
+
+        public FollowerCommandsDataClass(string followerName)
+        {
+            FollowerName = followerName;
+        }
 
         public string FollowerName { get; set; }
 
@@ -58,67 +69,56 @@ namespace FollowerV2
 
         public DateTime LastTimePortalUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        public DateTime LastTimeQuestItemPickupDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        public DateTime LastTimeQuestItemPickupDateTime { get; set; } =
+            new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        public DateTime LastTimeNormalItemPickupDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        public DateTime LastTimeNormalItemPickupDateTime { get; set; } =
+            new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        public DateTime LastTimeEnterHideoutUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        public int NormalItemId = 0;
-
-        public List<FollowerSkill> FollowerSkills = new List<FollowerSkill>();
-
-        public bool ShouldLevelUpGems = false;
-
-        public bool Aggressive = true;
-
-        public FollowerCommandsDataClass() { }
-
-        public FollowerCommandsDataClass(string followerName)
-        {
-            this.FollowerName = followerName;
-        }
+        public DateTime LastTimeEnterHideoutUsedDateTime { get; set; } =
+            new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         public void SetToUseEntrance()
         {
-            if (this.LastTimeEntranceUsedDateTime != _emptyDateTime) return;
+            if (LastTimeEntranceUsedDateTime != _emptyDateTime) return;
 
-            this.LastTimeEntranceUsedDateTime = DateTime.UtcNow;
+            LastTimeEntranceUsedDateTime = DateTime.UtcNow;
             Task.Delay(_taskDelayMs).ContinueWith(t => LastTimeEntranceUsedDateTime = _emptyDateTime);
         }
 
         public void SetToUsePortal()
         {
-            if (this.LastTimePortalUsedDateTime != _emptyDateTime) return;
+            if (LastTimePortalUsedDateTime != _emptyDateTime) return;
 
-            this.LastTimePortalUsedDateTime = DateTime.UtcNow;
+            LastTimePortalUsedDateTime = DateTime.UtcNow;
             Task.Delay(_taskDelayMs).ContinueWith(t => LastTimePortalUsedDateTime = _emptyDateTime);
         }
 
         public void SetPickupQuestItem()
         {
-            if (this.LastTimeQuestItemPickupDateTime != _emptyDateTime) return;
+            if (LastTimeQuestItemPickupDateTime != _emptyDateTime) return;
 
-            this.LastTimeQuestItemPickupDateTime = DateTime.UtcNow;
+            LastTimeQuestItemPickupDateTime = DateTime.UtcNow;
             Task.Delay(_taskDelayMs).ContinueWith(t => LastTimeQuestItemPickupDateTime = _emptyDateTime);
         }
 
         public void SetEnterHideout(string hideoutCharacterName)
         {
-            if (this.LastTimeEnterHideoutUsedDateTime != _emptyDateTime || String.IsNullOrEmpty(hideoutCharacterName)) return;
+            if (LastTimeEnterHideoutUsedDateTime != _emptyDateTime ||
+                string.IsNullOrEmpty(hideoutCharacterName)) return;
 
-            this.LastTimeEnterHideoutUsedDateTime = DateTime.UtcNow;
-            this.HideoutCharacterName = hideoutCharacterName;
+            LastTimeEnterHideoutUsedDateTime = DateTime.UtcNow;
+            HideoutCharacterName = hideoutCharacterName;
 
             Task.Delay(_taskDelayMs).ContinueWith(t => LastTimeEnterHideoutUsedDateTime = _emptyDateTime);
         }
 
         public void SetPickupNormalItem(int itemId)
         {
-            if (this.LastTimeNormalItemPickupDateTime != _emptyDateTime) return;
+            if (LastTimeNormalItemPickupDateTime != _emptyDateTime) return;
 
-            this.LastTimeNormalItemPickupDateTime = DateTime.UtcNow;
-            this.NormalItemId = itemId;
+            LastTimeNormalItemPickupDateTime = DateTime.UtcNow;
+            NormalItemId = itemId;
             Task.Delay(_taskDelayMs).ContinueWith(t =>
             {
                 LastTimeNormalItemPickupDateTime = _emptyDateTime;
@@ -128,7 +128,7 @@ namespace FollowerV2
 
         public void AddNewEmptySkill()
         {
-            int id = new Random().Next(0, 100);
+            var id = new Random().Next(0, 100);
             FollowerSkills.Add(new FollowerSkill(id));
         }
 

@@ -4,47 +4,55 @@ using SharpDX;
 
 namespace FollowerV2
 {
-    class FollowerState
+    internal class FollowerState
     {
-        public DateTime LastTimeEntranceUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        public DateTime SavedLastTimeEntranceUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        public DateTime LastTimePortalUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        public DateTime SavedLastTimePortalUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        public DateTime LastTimeQuestItemPickupDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        public DateTime SavedLastTimeQuestItemPickupDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        public DateTime LastTimeNormalItemPickupDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        public DateTime SavedLastTimeNormalItemPickupDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        public DateTime LastTimeEnterHideoutUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        public DateTime SavedLastTimeEnterHideoutUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        public string HideoutCharacterName { get; set; } = "";
-
-        public int NormalItemId = 0;
+        public bool Aggressive = true;
 
         public ActionsEnum CurrentAction = ActionsEnum.Nothing;
 
-        public int PortalLogicIterationCount = 0;
+        public int EntranceLogicIterationCount;
 
-        public int EntranceLogicIterationCount = 0;
+        public int NormalItemId = 0;
+
+        public int PortalLogicIterationCount;
+        public uint SavedCurrentAreaHash;
         public Vector3 SavedCurrentPos = Vector3.Zero;
-        public uint SavedCurrentAreaHash = 0;
+
+        public bool ShouldLevelUpGems = false;
+        public DateTime LastTimeEntranceUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public DateTime SavedLastTimeEntranceUsedDateTime { get; set; } =
+            new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public DateTime LastTimePortalUsedDateTime { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public DateTime SavedLastTimePortalUsedDateTime { get; set; } =
+            new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public DateTime LastTimeQuestItemPickupDateTime { get; set; } =
+            new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public DateTime SavedLastTimeQuestItemPickupDateTime { get; set; } =
+            new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public DateTime LastTimeNormalItemPickupDateTime { get; set; } =
+            new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public DateTime SavedLastTimeNormalItemPickupDateTime { get; set; } =
+            new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public DateTime LastTimeEnterHideoutUsedDateTime { get; set; } =
+            new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public DateTime SavedLastTimeEnterHideoutUsedDateTime { get; set; } =
+            new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        public string HideoutCharacterName { get; set; } = "";
 
         public List<FollowerSkill> FollowerSkills { get; set; } = new List<FollowerSkill>();
 
-        public bool ShouldLevelUpGems = false;
-
-        public bool Aggressive = true;
-
-        public DateTime LastTimeLevelUpGemsCompositeRan { get; set; } = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        public DateTime LastTimeLevelUpGemsCompositeRan { get; set; } =
+            new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         public void ResetAreaChangingValues()
         {

@@ -3,43 +3,42 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using ExileCore;
-using ExileCore.PoEMemory.Components;
-using ExileCore.PoEMemory.MemoryObjects;
-using ExileCore.Shared;
-using ExileCore.Shared.Enums;
-using SharpDX;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ExileCore;
 using ExileCore.PoEMemory;
+using ExileCore.PoEMemory.Components;
 using ExileCore.PoEMemory.Elements;
-using NumericsVector2 = System.Numerics.Vector2;
-using Newtonsoft.Json;
+using ExileCore.PoEMemory.MemoryObjects;
+using ExileCore.Shared;
+using ExileCore.Shared.Enums;
 using ImGuiNET;
+using Newtonsoft.Json;
+using SharpDX;
 using TreeRoutine.TreeSharp;
+using Action = TreeRoutine.TreeSharp.Action;
+using NumericsVector2 = System.Numerics.Vector2;
 
 namespace FollowerV2
 {
     public class Follower : BaseSettingsPlugin<FollowerV2Settings>
     {
-        private Coroutine _nearbyPlayersUpdateCoroutine;
+        private readonly DelayHelper _delayHelper = new DelayHelper();
+
+        private readonly DateTime _emptyDateTime = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        private ICommandProtocol _commandProtocol;
         private Coroutine _followerCoroutine;
 
-        public Composite Tree { get; set; }
-
-        private readonly DelayHelper _delayHelper = new DelayHelper();
+        private readonly FollowerState _followerState = new FollowerState();
+        private Coroutine _nearbyPlayersUpdateCoroutine;
 
         private NetworkRequestStatus _networkRequestStatus = NetworkRequestStatus.Finished;
 
-        private int _networkRequestStatusRetries = 0;
+        private int _networkRequestStatusRetries;
 
-        private ICommandProtocol _commandProtocol = null;
-
-        private FollowerState _followerState = new FollowerState();
-
-        private readonly DateTime _emptyDateTime = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        public Composite Tree { get; set; }
 
         public override bool Initialise()
         {
@@ -49,8 +48,8 @@ namespace FollowerV2
             Task.Run(() => MainRequestingWork());
             Task.Run(() => MainCommandProtocolWork());
 
-            _nearbyPlayersUpdateCoroutine = new Coroutine(UpdateNearbyPlayersWork(), this, "Update nearby players", true);
-            _followerCoroutine = new Coroutine(MainFollowerWork(), this, "Follower coroutine", true);
+            _nearbyPlayersUpdateCoroutine = new Coroutine(UpdateNearbyPlayersWork(), this, "Update nearby players");
+            _followerCoroutine = new Coroutine(MainFollowerWork(), this, "Follower coroutine");
 
             // Fire all coroutines
             Core.ParallelRunner.Run(_nearbyPlayersUpdateCoroutine);
@@ -73,9 +72,11 @@ namespace FollowerV2
             Settings.FollowerModeSettings.UseNearbyPlayerAsLeaderButton.OnPressed += OnNearbyPlayerAsLeaderSelect;
 
             Settings.LeaderModeSettings.SetMyselfAsLeader.OnPressed += OnSetMyselfAsLeaderToPropagateChanged;
-            Settings.LeaderModeSettings.LeaderModeNetworkSettings.ServerStop.OnPressed += (() => _commandProtocol.Stop());
-            Settings.LeaderModeSettings.LeaderModeNetworkSettings.ServerRestart.OnPressed += (() => _commandProtocol.Restart());
-            Settings.LeaderModeSettings.LeaderModeNetworkSettings.StartServer.OnValueChanged += OnStartServerValueChanged;
+            Settings.LeaderModeSettings.LeaderModeNetworkSettings.ServerStop.OnPressed += () => _commandProtocol.Stop();
+            Settings.LeaderModeSettings.LeaderModeNetworkSettings.ServerRestart.OnPressed +=
+                () => _commandProtocol.Restart();
+            Settings.LeaderModeSettings.LeaderModeNetworkSettings.StartServer.OnValueChanged +=
+                OnStartServerValueChanged;
             Settings.LeaderModeSettings.PropagateWorkingOfFollowersHotkey.OnValueChanged +=
                 OnPropagateWorkingOfFollowersHotkeyValueChanged;
         }
@@ -85,7 +86,8 @@ namespace FollowerV2
             Input.RegisterKey(Settings.LeaderModeSettings.PropagateWorkingOfFollowersHotkey);
             Input.RegisterKey(Settings.FollowerModeSettings.StartRequestingHotkey);
 
-            _delayHelper.AddToDelayManager(nameof(OnPropagateWorkingOfFollowersHotkeyPressed), OnPropagateWorkingOfFollowersHotkeyPressed, 1000);
+            _delayHelper.AddToDelayManager(nameof(OnPropagateWorkingOfFollowersHotkeyPressed),
+                OnPropagateWorkingOfFollowersHotkeyPressed, 1000);
             _delayHelper.AddToDelayManager(nameof(DebugHoverToLeader), DebugHoverToLeader, 50);
             _delayHelper.AddToDelayManager(nameof(StartNetworkRequestingPressed), StartNetworkRequestingPressed, 1000);
             _delayHelper.AddToDelayManager(nameof(SendPickupItemSignal), SendPickupItemSignal, 500);
@@ -105,29 +107,22 @@ namespace FollowerV2
 
                 Entity leaderEntity = GetLeaderEntity();
                 if (leaderEntity != null)
-                {
-                    DebugHelper.DrawEllipseToWorld(camera, Graphics, leaderEntity.Pos, Settings.FollowerModeSettings.LeaderProximityRadius.Value, 25, 2, Color.LawnGreen);
-                }
+                    DebugHelper.DrawEllipseToWorld(camera, Graphics, leaderEntity.Pos,
+                        Settings.FollowerModeSettings.LeaderProximityRadius.Value, 25, 2, Color.LawnGreen);
 
-                DebugHelper.DrawEllipseToWorld(camera, Graphics, player.Pos, Settings.LeaderModeSettings.LeaderProximityRadiusToPropagate.Value, 25, 2, Color.Yellow);
-
+                DebugHelper.DrawEllipseToWorld(camera, Graphics, player.Pos,
+                    Settings.LeaderModeSettings.LeaderProximityRadiusToPropagate.Value, 25, 2, Color.Yellow);
             }
             // Debug related ends
 
             if (Settings.LeaderModeSettings.PropagateWorkingOfFollowersHotkey.PressedOnce())
-            {
                 _delayHelper.CallFunction(nameof(OnPropagateWorkingOfFollowersHotkeyPressed));
-            }
 
             if (Settings.FollowerModeSettings.StartRequestingHotkey.PressedOnce())
-            {
                 _delayHelper.CallFunction(nameof(StartNetworkRequestingPressed));
-            }
 
-            if (Input.GetKeyState(Keys.ControlKey) && Settings.Profiles.Value == ProfilesEnum.Leader && Settings.FollowerCommandsImguiSettings.ShowWindow.Value)
-            {
-                RenderAdditionalFollowerCommandImguiWindow();
-            }
+            if (Input.GetKeyState(Keys.ControlKey) && Settings.Profiles.Value == ProfilesEnum.Leader &&
+                Settings.FollowerCommandsImguiSettings.ShowWindow.Value) RenderAdditionalFollowerCommandImguiWindow();
 
             WriteLeftPanelTexts();
         }
@@ -137,36 +132,47 @@ namespace FollowerV2
             int fontHeight = 20;
             Vector2 startDrawPoint = GameController.LeftPanel.StartDrawPoint;
 
-            bool isLocalMode = Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Local;
-            bool isNetworkMode = Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network;
+            bool isLocalMode = Settings.FollowerModeSettings.FollowerModes.Value ==
+                               FollowerNetworkActivityModeEnum.Local;
+            bool isNetworkMode = Settings.FollowerModeSettings.FollowerModes.Value ==
+                                 FollowerNetworkActivityModeEnum.Network;
             bool isFileMode = Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.File;
             bool isLeaderProfile = Settings.Profiles.Value == ProfilesEnum.Leader;
             bool isFollowerProfile = Settings.Profiles.Value == ProfilesEnum.Follower;
 
-            NumericsVector2 firstLine = Graphics.DrawText("FollowerV2    ", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+            NumericsVector2 firstLine = Graphics.DrawText("FollowerV2    ", startDrawPoint, Color.Yellow, fontHeight,
+                FontAlign.Right);
             startDrawPoint.Y += firstLine.Y;
 
-            firstLine = Graphics.DrawText($"Profile: {Settings.Profiles.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+            firstLine = Graphics.DrawText($"Profile: {Settings.Profiles.Value}", startDrawPoint, Color.Yellow,
+                fontHeight, FontAlign.Right);
             startDrawPoint.Y += firstLine.Y;
 
-            firstLine = Graphics.DrawText($"FollowerMode: {Settings.FollowerModeSettings.FollowerModes.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+            firstLine = Graphics.DrawText($"FollowerMode: {Settings.FollowerModeSettings.FollowerModes.Value}",
+                startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
             startDrawPoint.Y += firstLine.Y;
 
             if (isFollowerProfile)
             {
                 if (isNetworkMode)
                 {
-                    firstLine = Graphics.DrawText($"Network requesting: {Settings.FollowerModeSettings.StartRequesting.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+                    firstLine = Graphics.DrawText(
+                        $"Network requesting: {Settings.FollowerModeSettings.StartRequesting.Value}", startDrawPoint,
+                        Color.Yellow, fontHeight, FontAlign.Right);
                     startDrawPoint.Y += firstLine.Y;
                 }
 
-                firstLine = Graphics.DrawText($"Follower working: {Settings.FollowerModeSettings.FollowerShouldWork.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+                firstLine = Graphics.DrawText(
+                    $"Follower working: {Settings.FollowerModeSettings.FollowerShouldWork.Value}", startDrawPoint,
+                    Color.Yellow, fontHeight, FontAlign.Right);
                 startDrawPoint.Y += firstLine.Y;
             }
 
             if (isLeaderProfile && (isNetworkMode || isFileMode))
             {
-                firstLine = Graphics.DrawText($"Propagate working: {Settings.LeaderModeSettings.PropagateWorkingOfFollowers.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+                firstLine = Graphics.DrawText(
+                    $"Propagate working: {Settings.LeaderModeSettings.PropagateWorkingOfFollowers.Value}",
+                    startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
                 startDrawPoint.Y += firstLine.Y;
             }
         }
@@ -175,26 +181,20 @@ namespace FollowerV2
         {
             // Debug related
             if (Settings.Debug.Value)
-            {
                 if (Input.GetKeyState(Settings.DebugGenerateOnHoverEvents.Value))
-                {
                     _delayHelper.CallFunction(nameof(DebugHoverToLeader));
-                }
-            }
             // Debug related ends
 
             if (Settings.Profiles.Value == ProfilesEnum.Leader)
-            {
                 if (Input.GetKeyState(Keys.ControlKey))
                 {
-                    Keys[] numberKeys = { Keys.A, Keys.D1, Keys.D2, Keys.D3, Keys.D4, Keys.D5, Keys.D6, Keys.D7, Keys.D8, Keys.D9, Keys.D0 };
-                    bool anyNumberKeyPressed = numberKeys.Any(Input.GetKeyState);
-                    if (anyNumberKeyPressed)
+                    Keys[] numberKeys =
                     {
-                        _delayHelper.CallFunction(nameof(SendPickupItemSignal));
-                    }
+                        Keys.A, Keys.D1, Keys.D2, Keys.D3, Keys.D4, Keys.D5, Keys.D6, Keys.D7, Keys.D8, Keys.D9, Keys.D0
+                    };
+                    bool anyNumberKeyPressed = numberKeys.Any(Input.GetKeyState);
+                    if (anyNumberKeyPressed) _delayHelper.CallFunction(nameof(SendPickupItemSignal));
                 }
-            }
 
             return null;
         }
@@ -202,17 +202,50 @@ namespace FollowerV2
         private void SendPickupItemSignal()
         {
             int index;
-            if (Input.GetKeyState(Keys.D1)) index = 0;
-            else if (Input.GetKeyState(Keys.D2)) index = 1;
-            else if (Input.GetKeyState(Keys.D3)) index = 2;
-            else if (Input.GetKeyState(Keys.D4)) index = 3;
-            else if (Input.GetKeyState(Keys.D5)) index = 4;
-            else if (Input.GetKeyState(Keys.D6)) index = 5;
-            else if (Input.GetKeyState(Keys.D7)) index = 6;
-            else if (Input.GetKeyState(Keys.D8)) index = 7;
-            else if (Input.GetKeyState(Keys.D9)) index = 8;
-            else if (Input.GetKeyState(Keys.D0)) index = 9;
-            else if (Input.GetKeyState(Keys.A)) index = -1;
+            if (Input.GetKeyState(Keys.D1))
+            {
+                index = 0;
+            }
+            else if (Input.GetKeyState(Keys.D2))
+            {
+                index = 1;
+            }
+            else if (Input.GetKeyState(Keys.D3))
+            {
+                index = 2;
+            }
+            else if (Input.GetKeyState(Keys.D4))
+            {
+                index = 3;
+            }
+            else if (Input.GetKeyState(Keys.D5))
+            {
+                index = 4;
+            }
+            else if (Input.GetKeyState(Keys.D6))
+            {
+                index = 5;
+            }
+            else if (Input.GetKeyState(Keys.D7))
+            {
+                index = 6;
+            }
+            else if (Input.GetKeyState(Keys.D8))
+            {
+                index = 7;
+            }
+            else if (Input.GetKeyState(Keys.D9))
+            {
+                index = 8;
+            }
+            else if (Input.GetKeyState(Keys.D0))
+            {
+                index = 9;
+            }
+            else if (Input.GetKeyState(Keys.A))
+            {
+                index = -1;
+            }
             else
             {
                 LogMsgWithVerboseDebug("*** No proper number key pressed found");
@@ -242,18 +275,20 @@ namespace FollowerV2
                 return;
             }
 
-            int entityId = (int)targetedEntity.Id;
+            int entityId = (int) targetedEntity.Id;
 
             if (index == -1)
             {
                 // Command all
                 LogMsgWithVerboseDebug($"*** Setting ALL followers to pick item id {entityId}");
-                Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.ForEach(f => f.SetPickupNormalItem(entityId));
+                Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.ForEach(f =>
+                    f.SetPickupNormalItem(entityId));
 
                 return;
             }
 
-            FollowerCommandsDataClass follower = Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.ElementAt(index);
+            FollowerCommandsDataClass follower =
+                Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.ElementAt(index);
             LogMsgWithVerboseDebug($"*** Setting follower {follower.FollowerName} to pick item id {entityId}");
 
             follower.SetPickupNormalItem(entityId);
@@ -290,14 +325,14 @@ namespace FollowerV2
 
             return new Decorator(x => ShouldFollowLeader(),
                 new Sequence(
-                    new TreeRoutine.TreeSharp.Action(x =>
+                    new Action(x =>
                     {
                         Entity leaderPlayer;
                         IEnumerable<Entity> entities = GetEntities();
                         if (entities == null) return;
 
                         IEnumerable<Entity> players = entities.Where(e => e.Type == EntityType.Player);
-                        
+
                         try
                         {
                             leaderPlayer = players.FirstOrDefault(e =>
@@ -326,47 +361,50 @@ namespace FollowerV2
         {
             return new Decorator(x => ShouldPickupQuestItem() && IsFpsAboveThreshold(),
                 new Sequence(
-                    new TreeRoutine.TreeSharp.Action(x =>
+                    new Action(x =>
+                    {
+                        LogMsgWithVerboseDebug("Picking quest item");
+
+                        Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
+
+                        _followerState.LastTimeQuestItemPickupDateTime = _emptyDateTime;
+                        _followerState.SavedLastTimeQuestItemPickupDateTime = _emptyDateTime;
+
+                        Entity entity = null;
+
+                        // Take only quest items
+                        try
                         {
-                            LogMsgWithVerboseDebug("Picking quest item");
+                            entity = GameController.EntityListWrapper.Entities
+                                .Where(e => e.Type == EntityType.WorldItem)
+                                .Where(e => e.IsTargetable)
+                                .Where(e => e.GetComponent<WorldItem>() != null)
+                                .FirstOrDefault(e =>
+                                {
+                                    Entity itemEntity = e.GetComponent<WorldItem>().ItemEntity;
+                                    return GameController.Files.BaseItemTypes.Translate(itemEntity.Path).ClassName ==
+                                           "QuestItem";
+                                });
+                        }
+                        catch
+                        {
+                        }
 
-                            Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
+                        if (entity == null) return RunStatus.Failure;
 
-                            _followerState.LastTimeQuestItemPickupDateTime = _emptyDateTime;
-                            _followerState.SavedLastTimeQuestItemPickupDateTime = _emptyDateTime;
+                        Input.KeyDown(Keys.F);
+                        var hovered = HoverToEntityAction(entity);
+                        Input.KeyUp(Keys.F);
 
-                            Entity entity = null;
+                        if (!hovered) return RunStatus.Failure;
 
-                            // Take only quest items
-                            try
-                            {
-                                entity = GameController.EntityListWrapper.Entities
-                                    .Where(e => e.Type == EntityType.WorldItem)
-                                    .Where(e => e.IsTargetable)
-                                    .Where(e => e.GetComponent<WorldItem>() != null)
-                                    .FirstOrDefault(e =>
-                                    {
-                                        Entity itemEntity = e.GetComponent<WorldItem>().ItemEntity;
-                                        return GameController.Files.BaseItemTypes.Translate(itemEntity.Path).ClassName == "QuestItem";
-                                    });
-                            }
-                            catch { }
+                        Input.KeyDown(Keys.F);
+                        Mouse.LeftClick(10);
+                        Thread.Sleep(2000);
+                        Input.KeyUp(Keys.F);
 
-                            if (entity == null) return TreeRoutine.TreeSharp.RunStatus.Failure;
-
-                            Input.KeyDown(Keys.F);
-                            var hovered = HoverToEntityAction(entity);
-                            Input.KeyUp(Keys.F);
-
-                            if (!hovered) return TreeRoutine.TreeSharp.RunStatus.Failure;
-
-                            Input.KeyDown(Keys.F);
-                            Mouse.LeftClick(10);
-                            Thread.Sleep(2000);
-                            Input.KeyUp(Keys.F);
-
-                            return TreeRoutine.TreeSharp.RunStatus.Success;
-                        })
+                        return RunStatus.Success;
+                    })
                 )
             );
         }
@@ -375,22 +413,23 @@ namespace FollowerV2
         {
             return new Decorator(x => ShouldPickupNormalItem() && IsFpsAboveThreshold(),
                 new Sequence(
-                    new TreeRoutine.TreeSharp.Action(x =>
+                    new Action(x =>
                     {
                         LogMsgWithVerboseDebug($"Picking targeted item with id {_followerState.NormalItemId}");
 
                         Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
 
                         _followerState.SavedLastTimeNormalItemPickupDateTime = _emptyDateTime;
-                        _followerState.LastTimeNormalItemPickupDateTime = _followerState.LastTimeNormalItemPickupDateTime;
+                        _followerState.LastTimeNormalItemPickupDateTime =
+                            _followerState.LastTimeNormalItemPickupDateTime;
 
                         ICollection<Entity> entities = GetEntities();
 
-                        if (entities == null) return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        if (entities == null) return RunStatus.Failure;
 
                         Entity entity = entities.FirstOrDefault(e => e.Id == _followerState.NormalItemId);
 
-                        if (entity == null) return TreeRoutine.TreeSharp.RunStatus.Success;
+                        if (entity == null) return RunStatus.Success;
 
                         Input.KeyDown(Keys.F);
                         Thread.Sleep(20);
@@ -402,7 +441,7 @@ namespace FollowerV2
                         Thread.Sleep(20);
                         Input.KeyUp(Keys.Alt);
 
-                        if (!hovered) return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        if (!hovered) return RunStatus.Failure;
 
                         Input.KeyDown(Keys.F);
                         Input.KeyDown(Keys.Alt);
@@ -412,7 +451,7 @@ namespace FollowerV2
                         Input.KeyUp(Keys.F);
                         Input.KeyUp(Keys.Alt);
 
-                        return TreeRoutine.TreeSharp.RunStatus.Success;
+                        return RunStatus.Success;
                     })
                 )
             );
@@ -423,7 +462,7 @@ namespace FollowerV2
             LogMsgWithVerboseDebug($"{nameof(CreateUsingPortalComposite)} called");
             return new Decorator(x => _followerState.CurrentAction == ActionsEnum.UsingPortal && IsFpsAboveThreshold(),
                 new Sequence(
-                    new TreeRoutine.TreeSharp.Action(x =>
+                    new Action(x =>
                     {
                         Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
 
@@ -435,26 +474,23 @@ namespace FollowerV2
                             _followerState.CurrentAction = ActionsEnum.Nothing;
                             _followerState.ResetAreaChangingValues();
 
-                            return TreeRoutine.TreeSharp.RunStatus.Failure;
+                            return RunStatus.Failure;
                         }
 
                         if (_followerState.SavedCurrentPos == Vector3.Zero || _followerState.SavedCurrentAreaHash == 0)
-                        {
                             _followerState.SavedCurrentAreaHash = GameController.IngameState.Data.CurrentAreaHash;
-                        }
 
-                        Entity portalEntity = GetEntitiesByEntityTypeAndSortByDistance(EntityType.TownPortal, GameController.Player).FirstOrDefault();
-                        if (portalEntity == null) return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        Entity portalEntity =
+                            GetEntitiesByEntityTypeAndSortByDistance(EntityType.TownPortal, GameController.Player)
+                                .FirstOrDefault();
+                        if (portalEntity == null) return RunStatus.Failure;
 
                         // If portal entity is too far away stop the whole logic
-                        if (portalEntity.Distance(GameController.Player) > 70)
-                        {
-                            return TreeRoutine.TreeSharp.RunStatus.Failure;
-                        }
+                        if (portalEntity.Distance(GameController.Player) > 70) return RunStatus.Failure;
 
                         bool hovered = HoverToEntityAction(portalEntity);
 
-                        if (!hovered) return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        if (!hovered) return RunStatus.Failure;
 
                         Mouse.LeftClick(10);
                         Thread.Sleep(2000);
@@ -473,7 +509,7 @@ namespace FollowerV2
                             _followerState.ResetAreaChangingValues();
                         }
 
-                        return TreeRoutine.TreeSharp.RunStatus.Success;
+                        return RunStatus.Success;
                     })
                 )
             );
@@ -482,9 +518,10 @@ namespace FollowerV2
         private Composite CreateUsingEntranceComposite()
         {
             LogMsgWithVerboseDebug($"{nameof(CreateUsingEntranceComposite)} called");
-            return new Decorator(x => _followerState.CurrentAction == ActionsEnum.UsingEntrance && IsFpsAboveThreshold(),
+            return new Decorator(
+                x => _followerState.CurrentAction == ActionsEnum.UsingEntrance && IsFpsAboveThreshold(),
                 new Sequence(
-                    new TreeRoutine.TreeSharp.Action(x =>
+                    new Action(x =>
                     {
                         Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
 
@@ -496,7 +533,7 @@ namespace FollowerV2
                             _followerState.CurrentAction = ActionsEnum.Nothing;
                             _followerState.ResetAreaChangingValues();
 
-                            return TreeRoutine.TreeSharp.RunStatus.Failure;
+                            return RunStatus.Failure;
                         }
 
                         if (_followerState.SavedCurrentPos == Vector3.Zero || _followerState.SavedCurrentAreaHash == 0)
@@ -505,18 +542,17 @@ namespace FollowerV2
                             _followerState.SavedCurrentAreaHash = GameController.IngameState.Data.CurrentAreaHash;
                         }
 
-                        Entity entranceEntity = GetEntitiesByEntityTypeAndSortByDistance(EntityType.AreaTransition, GameController.Player).FirstOrDefault();
-                        if (entranceEntity == null) return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        Entity entranceEntity =
+                            GetEntitiesByEntityTypeAndSortByDistance(EntityType.AreaTransition, GameController.Player)
+                                .FirstOrDefault();
+                        if (entranceEntity == null) return RunStatus.Failure;
 
                         // If entrance entity is too far away stop the whole logic
-                        if (entranceEntity.Distance(GameController.Player) > 70)
-                        {
-                            return TreeRoutine.TreeSharp.RunStatus.Failure;
-                        }
+                        if (entranceEntity.Distance(GameController.Player) > 70) return RunStatus.Failure;
 
                         bool hovered = HoverToEntityAction(entranceEntity);
 
-                        if (!hovered) return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        if (!hovered) return RunStatus.Failure;
 
                         Mouse.LeftClick(10);
                         Thread.Sleep(2000);
@@ -528,14 +564,15 @@ namespace FollowerV2
                             Thread.Sleep(100);
                         }
 
-                        if (GameController.IsLoading || HasAreaBeenChangedByAreaHash() || HasAreaBeenChangedBySavedPos())
+                        if (GameController.IsLoading || HasAreaBeenChangedByAreaHash() ||
+                            HasAreaBeenChangedBySavedPos())
                         {
                             // We have changed the area
                             _followerState.CurrentAction = ActionsEnum.Nothing;
                             _followerState.ResetAreaChangingValues();
                         }
 
-                        return TreeRoutine.TreeSharp.RunStatus.Success;
+                        return RunStatus.Success;
                     })
                 )
             );
@@ -547,7 +584,7 @@ namespace FollowerV2
 
             return new Decorator(x => ShouldAttackMonsters() && IsFpsAboveThreshold() && _followerState.Aggressive,
                 new Sequence(
-                    new TreeRoutine.TreeSharp.Action(x =>
+                    new Action(x =>
                     {
                         Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
 
@@ -615,18 +652,18 @@ namespace FollowerV2
 
             return new Decorator(x => ShouldLevelUpGems() && IsFpsAboveThreshold(),
                 new Sequence(
-                    new TreeRoutine.TreeSharp.Action(x =>
+                    new Action(x =>
                     {
                         Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
 
                         List<Element> gemsToLvlUpElements = GetLevelableGems();
 
-                        if (!gemsToLvlUpElements.Any()) return TreeRoutine.TreeSharp.RunStatus.Failure;
+                        if (!gemsToLvlUpElements.Any()) return RunStatus.Failure;
 
                         // "+" sign on the gem level up element has Height as 45, search for this element only
                         List<Element> elementsToClick = gemsToLvlUpElements
                             .SelectMany(e => e.Children)
-                            .Where(e => (int)e.Height > 40 && (int)e.Height < 50)
+                            .Where(e => (int) e.Height > 40 && (int) e.Height < 50)
                             .ToList();
 
                         Vector2 windowOffset = GameController.Window.GetWindowRectangle().TopLeft;
@@ -634,7 +671,8 @@ namespace FollowerV2
                         foreach (Element elem in elementsToClick)
                         {
                             Vector2 elemCenter = elem.GetClientRectCache.Center;
-                            Vector2 finalPos = new Vector2(elemCenter.X + windowOffset.X, elemCenter.Y + windowOffset.Y);
+                            Vector2 finalPos = new Vector2(elemCenter.X + windowOffset.X,
+                                elemCenter.Y + windowOffset.Y);
 
                             Mouse.SetCursorPosHuman2(finalPos);
                             Thread.Sleep(200);
@@ -642,7 +680,7 @@ namespace FollowerV2
                             Thread.Sleep(200);
                         }
 
-                        return TreeRoutine.TreeSharp.RunStatus.Success;
+                        return RunStatus.Success;
                     })
                 )
             );
@@ -656,7 +694,7 @@ namespace FollowerV2
                 x => _followerState.CurrentAction == ActionsEnum.EnteringHideout &&
                      !string.IsNullOrEmpty(_followerState.HideoutCharacterName),
                 new Sequence(
-                    new TreeRoutine.TreeSharp.Action(x =>
+                    new Action(x =>
                     {
                         Input.KeyUp(Settings.FollowerModeSettings.MoveHotkey.Value);
 
@@ -668,24 +706,25 @@ namespace FollowerV2
 
                         string fullCommand = $"/hideout {_followerState.HideoutCharacterName}";
 
-                        List<Keys> keys = new List<Keys>() { Keys.Enter, Keys.OemQuestion, Keys.H, Keys.I, Keys.D, Keys.E, Keys.O, Keys.U, Keys.T, Keys.Space };
+                        List<Keys> keys = new List<Keys>
+                        {
+                            Keys.Enter, Keys.OemQuestion, Keys.H, Keys.I, Keys.D, Keys.E, Keys.O, Keys.U, Keys.T,
+                            Keys.Space
+                        };
                         List<Keys> nameAsKeys = StringToKeysList(_followerState.HideoutCharacterName);
 
                         if (nameAsKeys == null) return RunStatus.Success;
 
                         keys.AddRange(nameAsKeys);
 
-                        foreach (Keys key in keys)
-                        {
-                            pressKey(key);
-                        }
+                        foreach (Keys key in keys) pressKey(key);
 
                         PoeChatElement chatBoxRoot = GameController.IngameState.IngameUi.ChatBoxRoot;
                         if (chatBoxRoot?.Children != null && chatBoxRoot.Children.Any())
                         {
                             // If ChatBoxRoot is present we can check whether the text is correct
                             bool textPresent = chatBoxRoot.Children
-                                .Where(e => !String.IsNullOrEmpty(e.Text))
+                                .Where(e => !string.IsNullOrEmpty(e.Text))
                                 .Any(e => e.Text == fullCommand);
 
                             pressKey(textPresent ? Keys.Enter : Keys.Escape);
@@ -719,12 +758,8 @@ namespace FollowerV2
             List<Vector2> offsets = new List<Vector2>();
 
             foreach (int yOffset in Enumerable.Range(-5, 5))
-            {
-                foreach (int xOffset in Enumerable.Range(-5, 5))
-                {
-                    offsets.Add(new Vector2(xOffset * offsetValue, yOffset * offsetValue));
-                }
-            }
+            foreach (int xOffset in Enumerable.Range(-5, 5))
+                offsets.Add(new Vector2(xOffset * offsetValue, yOffset * offsetValue));
 
             bool targeted = false;
 
@@ -747,7 +782,7 @@ namespace FollowerV2
                 Vector2 offset = offsets[elem];
                 offsets.Remove(offset);
 
-                HoverTo(entity, (int)offset.X, (int)offset.Y);
+                HoverTo(entity, (int) offset.X, (int) offset.Y);
                 Thread.Sleep(50);
             }
 
@@ -783,9 +818,10 @@ namespace FollowerV2
             try
             {
                 isEntityPresent = GameController.Entities.Any(e => e.Id == entityId);
-
             }
-            catch { }
+            catch
+            {
+            }
 
             return isEntityPresent;
         }
@@ -804,210 +840,11 @@ namespace FollowerV2
             // If X or Y value of the saved coordinates have changed more than the treshold it means we have changed the area
             int posTreshold = 1200;
 
-            int xChange = Math.Abs((int)_followerState.SavedCurrentPos.X - (int)GameController.Player.Pos.X);
-            int yChange = Math.Abs((int)_followerState.SavedCurrentPos.Y - (int)GameController.Player.Pos.Y);
+            int xChange = Math.Abs((int) _followerState.SavedCurrentPos.X - (int) GameController.Player.Pos.X);
+            int yChange = Math.Abs((int) _followerState.SavedCurrentPos.Y - (int) GameController.Player.Pos.Y);
 
             return xChange > posTreshold || yChange > posTreshold;
         }
-
-        #region TreeSharp Related
-
-        private bool ShouldLevelUpGems()
-        {
-            // Return fast so that we do not waste computing resources
-            if (!_followerState.ShouldLevelUpGems) return false;
-
-            // Also do not run gems level up composite more often than once per 5 seconds
-            int delayMs = 5000;
-            long delta = DelayHelper.GetDeltaInMilliseconds(_followerState.LastTimeLevelUpGemsCompositeRan);
-            if (delta < delayMs) return false;
-
-            _followerState.LastTimeLevelUpGemsCompositeRan = DateTime.UtcNow;
-
-            // Do we have gems to level-up ?
-            return GetLevelableGems().Any();
-        }
-
-        private List<Element> GetLevelableGems()
-        {
-            List<Element> gemsToLevelUp = new List<Element>();
-
-            var possibleGemsToLvlUpElements = GameController.IngameState.IngameUi?.GemLvlUpPanel?.GemsToLvlUp;
-
-            if (possibleGemsToLvlUpElements != null && possibleGemsToLvlUpElements.Any())
-            {
-                foreach (Element possibleGemsToLvlUpElement in possibleGemsToLvlUpElements)
-                {
-                    foreach (Element elem in possibleGemsToLvlUpElement.Children)
-                    {
-                        if (elem.Text != null && elem.Text.Contains("Click to level"))
-                            gemsToLevelUp.Add(possibleGemsToLvlUpElement);
-                    }
-                }
-            }
-
-            return gemsToLevelUp;
-        }
-
-        private bool IsFpsAboveThreshold()
-        {
-            int currentFps = (int)GameController.IngameState.CurFps;
-            int threshold = Settings.FollowerModeSettings.MinimumFpsThreshold.Value;
-
-            return currentFps >= threshold;
-        }
-
-        private bool ShouldAttackMonsters()
-        {
-            // Do we have attack skills without a cooldown?
-            List<FollowerSkill> availableAttackSkills = GetFollowerAttackSkillsWithoutCooldown();
-
-            if (!availableAttackSkills.Any()) return false;
-
-            // Are there monsters around?
-            List<Entity> monstersList = GetMonsterEntities();
-
-            if (monstersList == null || !monstersList.Any()) return false;
-
-            // Are monsters within any of the attack skill distances?
-            List<int> skillDistances = availableAttackSkills.Select(s => s.MaxRange).ToList();
-            List<int> monsterDistancesToPlayer = monstersList.Select(e => (int)e.DistancePlayer).ToList();
-            bool withinRange = false;
-
-            foreach (int monsterDistance in monsterDistancesToPlayer)
-            {
-                foreach (int skillDistance in skillDistances)
-                {
-                    if (monsterDistance <= skillDistance)
-                    {
-                        withinRange = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!withinRange) return false;
-
-            return true;
-        }
-
-        private List<Entity> GetMonsterEntities()
-        {
-            List<Entity> monstersList = null;
-            try
-            {
-                // try/catch is intentional to avoid ExileApi issue. DO NOT REMOVE
-                monstersList = GameController.Entities
-                    .Where(e => e.Type == EntityType.Monster)
-                    .Where(e => e.IsAlive && e.IsHostile && e.IsTargetable && e.IsValid)
-                    .ToList();
-            }
-            catch { }
-
-            return monstersList;
-        }
-
-        private Entity GetClosestCorpse(int maxDistance)
-        {
-            try
-            {
-                return GetEntities()
-                    .Where(e => e.Type == EntityType.Monster)
-                    .Where(e => !e.IsAlive)
-                    .Where(e => (int)e.DistancePlayer <= maxDistance)
-                    .OrderBy(e => e.DistancePlayer)
-                    .FirstOrDefault();
-            }
-            catch
-            {
-            }
-
-            return null;
-        }
-
-        private List<FollowerSkill> GetFollowerAttackSkillsWithoutCooldown()
-        {
-            return _followerState.FollowerSkills
-                .Where(s => s.Enable && !s.IsMovingSkill)
-                .Where(s => DelayHelper.GetDeltaInMilliseconds(s.LastTimeUsed) > s.CooldownMs)
-                .ToList();
-        }
-
-        private bool ShouldPickupNormalItem()
-        {
-            return _followerState.LastTimeNormalItemPickupDateTime != _emptyDateTime &&
-                   _followerState.LastTimeNormalItemPickupDateTime != _followerState.SavedLastTimeNormalItemPickupDateTime;
-        }
-
-        private bool ShouldPickupQuestItem()
-        {
-            return _followerState.LastTimeQuestItemPickupDateTime != _emptyDateTime &&
-                   _followerState.LastTimeQuestItemPickupDateTime != _followerState.SavedLastTimeQuestItemPickupDateTime;
-        }
-
-        private bool ShouldFollowLeader()
-        {
-            //LogMsgWithVerboseDebug($"{nameof(ShouldFollowLeader)} called");
-
-            bool leaderNotEmpty = !string.IsNullOrEmpty(Settings.FollowerModeSettings.LeaderName.Value);
-            Entity leaderEntity = GetLeaderEntity();
-            if (leaderEntity == null) return leaderNotEmpty;
-
-            var distance = leaderEntity.Distance(GameController.Player);
-            //LogMsgWithVerboseDebug($"  distance: {distance}");
-            //LogMsgWithVerboseDebug($"  proximity: {Settings.FollowerModeSettings.LeaderProximityRadius.Value}");
-            bool outsideBorders = distance > Settings.FollowerModeSettings.LeaderProximityRadius.Value;
-
-            return leaderNotEmpty && outsideBorders;
-        }
-
-        private bool BtCanTick()
-        {
-            //LogMsgWithVerboseDebug($"{nameof(BtCanTick)} called");
-
-            if (GameController.IsLoading)
-            {
-                return false;
-            }
-            if (!GameController.Game.IngameState.ServerData.IsInGame)
-            {
-                return false;
-            }
-            else if (GameController.Player == null || GameController.Player.Address == 0 || !GameController.Player.IsValid)
-            {
-                return false;
-            }
-            else if (!GameController.Window.IsForeground())
-            {
-                return false;
-            }
-
-            //LogMsgWithVerboseDebug("    BtCanTick returning true");
-
-            return true;
-        }
-
-        private bool IsPlayerAlive()
-        {
-            return GameController.Game.IngameState.Data.LocalPlayer.GetComponent<Life>().CurHP > 0;
-        }
-
-        private bool ShouldWork()
-        {
-            //LogMsgWithVerboseDebug($"{nameof(ShouldWork)} called");
-
-            if (Settings.Profiles.Value == ProfilesEnum.Follower)
-            {
-                //LogMsgWithVerboseDebug($"    returning {Settings.FollowerModeSettings.FollowerShouldWork.Value}");
-
-                return Settings.FollowerModeSettings.FollowerShouldWork.Value;
-            }
-
-            //LogMsgWithVerboseDebug("    returning false");
-            return false;
-        }
-
-        #endregion
 
         private void TickTree(Composite treeRoot)
         {
@@ -1095,6 +932,7 @@ namespace FollowerV2
 
             Input.RegisterKey(Settings.LeaderModeSettings.PropagateWorkingOfFollowersHotkey);
         }
+
         private void OnStartNetworkRequestingHotkeyValueChanged()
         {
             LogMsgWithVerboseDebug("OnStartNetworkRequestingHotkeyValueChanged called");
@@ -1114,7 +952,8 @@ namespace FollowerV2
         {
             LogMsgWithVerboseDebug("OnNearbyPlayerAsLeaderSelect called");
 
-            if (!String.IsNullOrEmpty(Settings.NearbyPlayers.Value)) Settings.FollowerModeSettings.LeaderName.Value = Settings.NearbyPlayers.Value;
+            if (!string.IsNullOrEmpty(Settings.NearbyPlayers.Value))
+                Settings.FollowerModeSettings.LeaderName.Value = Settings.NearbyPlayers.Value;
 
             Settings.NearbyPlayers.Value = "";
         }
@@ -1131,7 +970,8 @@ namespace FollowerV2
 
             while (true)
             {
-                if (Settings.Profiles.Value != ProfilesEnum.Follower || !Settings.FollowerModeSettings.StartRequesting.Value)
+                if (Settings.Profiles.Value != ProfilesEnum.Follower ||
+                    !Settings.FollowerModeSettings.StartRequesting.Value)
                 {
                     Thread.Sleep(100);
                     continue;
@@ -1161,9 +1001,10 @@ namespace FollowerV2
                     LogError($"{Name}: Exception! \nMessage: {e.Message} \n{e.StackTrace}", 30);
                 }
 
-                if (!String.IsNullOrEmpty(reply))
+                if (!string.IsNullOrEmpty(reply))
                 {
-                    NetworkActivityObject networkActivityObject = JsonConvert.DeserializeObject<NetworkActivityObject>(reply);
+                    NetworkActivityObject networkActivityObject =
+                        JsonConvert.DeserializeObject<NetworkActivityObject>(reply);
                     ProcessNetworkActivityResponse(networkActivityObject);
                 }
 
@@ -1213,10 +1054,10 @@ namespace FollowerV2
                 }
 
                 bool shouldWork =
-                    (Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.File &&
-                     Settings.LeaderModeSettings.LeaderModeFileSettings.StartFileWriting.Value) ||
-                    (Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network &&
-                     Settings.LeaderModeSettings.LeaderModeNetworkSettings.StartServer.Value);
+                    Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.File &&
+                    Settings.LeaderModeSettings.LeaderModeFileSettings.StartFileWriting.Value ||
+                    Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network &&
+                    Settings.LeaderModeSettings.LeaderModeNetworkSettings.StartServer.Value;
 
                 try
                 {
@@ -1257,7 +1098,6 @@ namespace FollowerV2
             }
             else if (shouldUseFileProtocol)
             {
-
                 if (_commandProtocol is FileCommandProtocol) return;
 
                 _commandProtocol?.Stop();
@@ -1284,7 +1124,6 @@ namespace FollowerV2
                         string playerName = e.GetComponent<Player>().PlayerName;
                         if (playerName == "") return false;
                         return playerName != GameController.Player.GetComponent<Player>().PlayerName;
-
                     })
                     .Select(e => e.GetComponent<Player>().PlayerName)
                     .ToList();
@@ -1330,7 +1169,9 @@ namespace FollowerV2
                 result.X + randomXOffset + xOffset + windowOffset.X,
                 result.Y + randomYOffset + yOffset + windowOffset.Y);
 
-            bool intersects = GameController.Window.GetWindowRectangleTimeCache.Intersects(new RectangleF(finalPos.X, finalPos.Y, 3, 3));
+            bool intersects =
+                GameController.Window.GetWindowRectangleTimeCache.Intersects(new RectangleF(finalPos.X, finalPos.Y, 3,
+                    3));
             // The entity is inside the game window and visible, we can just hover
             if (intersects)
             {
@@ -1346,23 +1187,11 @@ namespace FollowerV2
             float bottomRightX = GameController.Window.GetWindowRectangle().BottomRight.X;
             float bottomRightY = GameController.Window.GetWindowRectangle().BottomRight.Y;
 
-            if (finalPos.X < topLeftX)
-            {
-                finalPos.X = topLeftX + smallOffset;
-            }
-            if (finalPos.Y < topLeftY)
-            {
-                finalPos.Y = topLeftY + smallOffset;
-            }
-            if (finalPos.X > bottomRightX)
-            {
-                finalPos.X = bottomRightX - smallOffset;
-            }
+            if (finalPos.X < topLeftX) finalPos.X = topLeftX + smallOffset;
+            if (finalPos.Y < topLeftY) finalPos.Y = topLeftY + smallOffset;
+            if (finalPos.X > bottomRightX) finalPos.X = bottomRightX - smallOffset;
 
-            if (finalPos.Y > bottomRightY)
-            {
-                finalPos.Y = bottomRightY - smallOffset;
-            }
+            if (finalPos.Y > bottomRightY) finalPos.Y = bottomRightY - smallOffset;
 
             Mouse.SetCursorPosHuman2(finalPos);
         }
@@ -1405,7 +1234,7 @@ namespace FollowerV2
 
             try
             {
-                result = NetworkHelper.GetNetworkResponse(url, timeoutMs);   
+                result = NetworkHelper.GetNetworkResponse(url, timeoutMs);
             }
             finally
             {
@@ -1425,11 +1254,14 @@ namespace FollowerV2
                 return File.ReadAllText(filePath);
             }
             // These exceptions are OK to skip
-            catch (DirectoryNotFoundException e) {}
-            catch (IOException e) { }
+            catch (DirectoryNotFoundException e)
+            {
+            }
+            catch (IOException e)
+            {
+            }
 
             return null;
-
         }
 
         private List<Entity> GetEntitiesByEntityTypeAndSortByDistance(EntityType entityType, Entity entity)
@@ -1440,7 +1272,9 @@ namespace FollowerV2
                     .OrderBy(o => FollowerHelpers.EntityDistance(o, entity))
                     .ToList();
             }
-            catch { }
+            catch
+            {
+            }
 
             return null;
         }
@@ -1449,10 +1283,7 @@ namespace FollowerV2
         {
             LogMsgWithVerboseDebug("ProcessNetworkActivityResponse called");
 
-            if (obj == null)
-            {
-                return;
-            }
+            if (obj == null) return;
 
             Settings.FollowerModeSettings.FollowerShouldWork.Value = obj.FollowersShouldWork;
             Settings.FollowerModeSettings.LeaderName.Value = obj.LeaderName;
@@ -1460,7 +1291,8 @@ namespace FollowerV2
             Settings.FollowerModeSettings.MinimumFpsThreshold.Value = obj.MinimumFpsThreshold;
 
             string selfName = GameController.EntityListWrapper.Player.GetComponent<Player>().PlayerName;
-            var follower = obj.FollowerCommandSettings.FollowerCommandsDataSet.FirstOrDefault(f => f.FollowerName == selfName);
+            var follower =
+                obj.FollowerCommandSettings.FollowerCommandsDataSet.FirstOrDefault(f => f.FollowerName == selfName);
 
             if (follower == null) return;
 
@@ -1475,19 +1307,22 @@ namespace FollowerV2
             _followerState.ShouldLevelUpGems = follower.ShouldLevelUpGems;
             _followerState.Aggressive = follower.Aggressive;
 
-            if (_followerState.LastTimePortalUsedDateTime != _emptyDateTime && _followerState.LastTimePortalUsedDateTime != _followerState.SavedLastTimePortalUsedDateTime)
+            if (_followerState.LastTimePortalUsedDateTime != _emptyDateTime &&
+                _followerState.LastTimePortalUsedDateTime != _followerState.SavedLastTimePortalUsedDateTime)
             {
                 _followerState.SavedLastTimePortalUsedDateTime = _followerState.LastTimePortalUsedDateTime;
                 _followerState.CurrentAction = ActionsEnum.UsingPortal;
             }
 
-            if (_followerState.LastTimeEntranceUsedDateTime != _emptyDateTime && _followerState.LastTimeEntranceUsedDateTime != _followerState.SavedLastTimeEntranceUsedDateTime)
+            if (_followerState.LastTimeEntranceUsedDateTime != _emptyDateTime &&
+                _followerState.LastTimeEntranceUsedDateTime != _followerState.SavedLastTimeEntranceUsedDateTime)
             {
                 _followerState.SavedLastTimeEntranceUsedDateTime = _followerState.LastTimeEntranceUsedDateTime;
                 _followerState.CurrentAction = ActionsEnum.UsingEntrance;
             }
 
-            if (_followerState.LastTimeEnterHideoutUsedDateTime != _emptyDateTime && _followerState.LastTimeEnterHideoutUsedDateTime != _followerState.SavedLastTimeEnterHideoutUsedDateTime)
+            if (_followerState.LastTimeEnterHideoutUsedDateTime != _emptyDateTime &&
+                _followerState.LastTimeEnterHideoutUsedDateTime != _followerState.SavedLastTimeEnterHideoutUsedDateTime)
             {
                 _followerState.SavedLastTimeEnterHideoutUsedDateTime = _followerState.LastTimeEnterHideoutUsedDateTime;
                 _followerState.CurrentAction = ActionsEnum.EnteringHideout;
@@ -1531,7 +1366,9 @@ namespace FollowerV2
             {
                 return GameController.Entities;
             }
-            catch { }
+            catch
+            {
+            }
 
             return null;
         }
@@ -1589,12 +1426,6 @@ namespace FollowerV2
                 LogMessage(message);
         }
 
-        private enum NetworkRequestStatus
-        {
-            Finished,
-            Working,
-        }
-
         private void RenderAdditionalFollowerCommandImguiWindow()
         {
             DateTime emptyDateTime = new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -1622,14 +1453,12 @@ namespace FollowerV2
             ImGui.TextUnformatted("This window commands");
             ImGui.SameLine();
             if (ImGui.Button(lockButtonLabel))
-            {
-                Settings.FollowerCommandsImguiSettings.LockPanel.Value = !Settings.FollowerCommandsImguiSettings.LockPanel.Value;
-            }
+                Settings.FollowerCommandsImguiSettings.LockPanel.Value =
+                    !Settings.FollowerCommandsImguiSettings.LockPanel.Value;
             ImGui.SameLine();
             if (ImGui.Button(resizeButtonLabel))
-            {
-                Settings.FollowerCommandsImguiSettings.NoResize.Value = !Settings.FollowerCommandsImguiSettings.NoResize.Value;
-            }
+                Settings.FollowerCommandsImguiSettings.NoResize.Value =
+                    !Settings.FollowerCommandsImguiSettings.NoResize.Value;
             ImGui.Spacing();
 
             int userNumber = 1;
@@ -1640,13 +1469,8 @@ namespace FollowerV2
                 string followerName = follower.FollowerName;
 
                 if (followerName.Length > maxNameLength)
-                {
                     followerName = followerName.Substring(0, maxNameLength - 2) + "..";
-                }
-                else if (followerName.Length < maxNameLength)
-                {
-                    followerName = followerName.PadLeft(maxNameLength);
-                }
+                else if (followerName.Length < maxNameLength) followerName = followerName.PadLeft(maxNameLength);
 
                 ImGui.TextUnformatted($"User {userNumber}: {followerName}:");
                 ImGui.SameLine();
@@ -1655,21 +1479,25 @@ namespace FollowerV2
                     ImGui.TextUnformatted("E");
                     ImGui.SameLine();
                 }
+
                 if (follower.LastTimePortalUsedDateTime != emptyDateTime)
                 {
                     ImGui.TextUnformatted("P");
                     ImGui.SameLine();
                 }
+
                 if (follower.LastTimeQuestItemPickupDateTime != emptyDateTime)
                 {
                     ImGui.TextUnformatted("Q");
                     ImGui.SameLine();
                 }
+
                 if (follower.LastTimeNormalItemPickupDateTime != emptyDateTime)
                 {
                     ImGui.TextUnformatted("I");
                     ImGui.SameLine();
                 }
+
                 if (follower.LastTimeEnterHideoutUsedDateTime != emptyDateTime)
                 {
                     ImGui.TextUnformatted("H");
@@ -1685,10 +1513,13 @@ namespace FollowerV2
                 if (ImGui.Button($"QIPick##{follower.FollowerName}")) follower.SetPickupQuestItem();
 
                 ImGui.SameLine();
-                if (ImGui.Button($"H##{follower.FollowerName}")) Settings.LeaderModeSettings.FollowerCommandSetting.SetFollowersToEnterHideout(follower.FollowerName);
+                if (ImGui.Button($"H##{follower.FollowerName}"))
+                    Settings.LeaderModeSettings.FollowerCommandSetting
+                        .SetFollowersToEnterHideout(follower.FollowerName);
 
                 ImGui.SameLine();
-                if (ImGui.Button($"Del##{follower.FollowerName}")) Settings.LeaderModeSettings.FollowerCommandSetting.RemoveFollower(follower.FollowerName);
+                if (ImGui.Button($"Del##{follower.FollowerName}"))
+                    Settings.LeaderModeSettings.FollowerCommandSetting.RemoveFollower(follower.FollowerName);
 
                 ImGui.SameLine();
                 ImGui.TextUnformatted($"I: Ctrl+{userNumber}");
@@ -1698,13 +1529,15 @@ namespace FollowerV2
 
                 userNumber++;
             }
+
             ImGui.Spacing();
 
             string leaderName = Settings.LeaderModeSettings.LeaderNameToPropagate.Value;
-            List<FollowerCommandsDataClass> followers = Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.ToList();
+            List<FollowerCommandsDataClass> followers =
+                Settings.LeaderModeSettings.FollowerCommandSetting.FollowerCommandsDataSet.ToList();
 
             ImGui.SameLine();
-            ImGui.TextUnformatted($"All:  ");
+            ImGui.TextUnformatted("All:  ");
             ImGui.SameLine();
             if (ImGui.Button("Entrance##AllEntrance")) followers.ForEach(f => f.SetToUseEntrance());
             ImGui.SameLine();
@@ -1719,5 +1552,192 @@ namespace FollowerV2
             ImGui.Spacing();
             ImGui.End();
         }
+
+        private enum NetworkRequestStatus
+        {
+            Finished,
+            Working
+        }
+
+        #region TreeSharp Related
+
+        private bool ShouldLevelUpGems()
+        {
+            // Return fast so that we do not waste computing resources
+            if (!_followerState.ShouldLevelUpGems) return false;
+
+            // Also do not run gems level up composite more often than once per 5 seconds
+            int delayMs = 5000;
+            long delta = DelayHelper.GetDeltaInMilliseconds(_followerState.LastTimeLevelUpGemsCompositeRan);
+            if (delta < delayMs) return false;
+
+            _followerState.LastTimeLevelUpGemsCompositeRan = DateTime.UtcNow;
+
+            // Do we have gems to level-up ?
+            return GetLevelableGems().Any();
+        }
+
+        private List<Element> GetLevelableGems()
+        {
+            List<Element> gemsToLevelUp = new List<Element>();
+
+            var possibleGemsToLvlUpElements = GameController.IngameState.IngameUi?.GemLvlUpPanel?.GemsToLvlUp;
+
+            if (possibleGemsToLvlUpElements != null && possibleGemsToLvlUpElements.Any())
+                foreach (Element possibleGemsToLvlUpElement in possibleGemsToLvlUpElements)
+                foreach (Element elem in possibleGemsToLvlUpElement.Children)
+                    if (elem.Text != null && elem.Text.Contains("Click to level"))
+                        gemsToLevelUp.Add(possibleGemsToLvlUpElement);
+
+            return gemsToLevelUp;
+        }
+
+        private bool IsFpsAboveThreshold()
+        {
+            int currentFps = (int) GameController.IngameState.CurFps;
+            int threshold = Settings.FollowerModeSettings.MinimumFpsThreshold.Value;
+
+            return currentFps >= threshold;
+        }
+
+        private bool ShouldAttackMonsters()
+        {
+            // Do we have attack skills without a cooldown?
+            List<FollowerSkill> availableAttackSkills = GetFollowerAttackSkillsWithoutCooldown();
+
+            if (!availableAttackSkills.Any()) return false;
+
+            // Are there monsters around?
+            List<Entity> monstersList = GetMonsterEntities();
+
+            if (monstersList == null || !monstersList.Any()) return false;
+
+            // Are monsters within any of the attack skill distances?
+            List<int> skillDistances = availableAttackSkills.Select(s => s.MaxRange).ToList();
+            List<int> monsterDistancesToPlayer = monstersList.Select(e => (int) e.DistancePlayer).ToList();
+            bool withinRange = false;
+
+            foreach (int monsterDistance in monsterDistancesToPlayer)
+            foreach (int skillDistance in skillDistances)
+                if (monsterDistance <= skillDistance)
+                {
+                    withinRange = true;
+                    break;
+                }
+
+            if (!withinRange) return false;
+
+            return true;
+        }
+
+        private List<Entity> GetMonsterEntities()
+        {
+            List<Entity> monstersList = null;
+            try
+            {
+                // try/catch is intentional to avoid ExileApi issue. DO NOT REMOVE
+                monstersList = GameController.Entities
+                    .Where(e => e.Type == EntityType.Monster)
+                    .Where(e => e.IsAlive && e.IsHostile && e.IsTargetable && e.IsValid)
+                    .ToList();
+            }
+            catch
+            {
+            }
+
+            return monstersList;
+        }
+
+        private Entity GetClosestCorpse(int maxDistance)
+        {
+            try
+            {
+                return GetEntities()
+                    .Where(e => e.Type == EntityType.Monster)
+                    .Where(e => !e.IsAlive)
+                    .Where(e => (int) e.DistancePlayer <= maxDistance)
+                    .OrderBy(e => e.DistancePlayer)
+                    .FirstOrDefault();
+            }
+            catch
+            {
+            }
+
+            return null;
+        }
+
+        private List<FollowerSkill> GetFollowerAttackSkillsWithoutCooldown()
+        {
+            return _followerState.FollowerSkills
+                .Where(s => s.Enable && !s.IsMovingSkill)
+                .Where(s => DelayHelper.GetDeltaInMilliseconds(s.LastTimeUsed) > s.CooldownMs)
+                .ToList();
+        }
+
+        private bool ShouldPickupNormalItem()
+        {
+            return _followerState.LastTimeNormalItemPickupDateTime != _emptyDateTime &&
+                   _followerState.LastTimeNormalItemPickupDateTime !=
+                   _followerState.SavedLastTimeNormalItemPickupDateTime;
+        }
+
+        private bool ShouldPickupQuestItem()
+        {
+            return _followerState.LastTimeQuestItemPickupDateTime != _emptyDateTime &&
+                   _followerState.LastTimeQuestItemPickupDateTime !=
+                   _followerState.SavedLastTimeQuestItemPickupDateTime;
+        }
+
+        private bool ShouldFollowLeader()
+        {
+            //LogMsgWithVerboseDebug($"{nameof(ShouldFollowLeader)} called");
+
+            bool leaderNotEmpty = !string.IsNullOrEmpty(Settings.FollowerModeSettings.LeaderName.Value);
+            Entity leaderEntity = GetLeaderEntity();
+            if (leaderEntity == null) return leaderNotEmpty;
+
+            var distance = leaderEntity.Distance(GameController.Player);
+            //LogMsgWithVerboseDebug($"  distance: {distance}");
+            //LogMsgWithVerboseDebug($"  proximity: {Settings.FollowerModeSettings.LeaderProximityRadius.Value}");
+            bool outsideBorders = distance > Settings.FollowerModeSettings.LeaderProximityRadius.Value;
+
+            return leaderNotEmpty && outsideBorders;
+        }
+
+        private bool BtCanTick()
+        {
+            //LogMsgWithVerboseDebug($"{nameof(BtCanTick)} called");
+
+            if (GameController.IsLoading) return false;
+            if (!GameController.Game.IngameState.ServerData.IsInGame)
+                return false;
+            if (GameController.Player == null || GameController.Player.Address == 0 || !GameController.Player.IsValid)
+                return false;
+            if (!GameController.Window.IsForeground()) return false;
+
+            //LogMsgWithVerboseDebug("    BtCanTick returning true");
+
+            return true;
+        }
+
+        private bool IsPlayerAlive()
+        {
+            return GameController.Game.IngameState.Data.LocalPlayer.GetComponent<Life>().CurHP > 0;
+        }
+
+        private bool ShouldWork()
+        {
+            //LogMsgWithVerboseDebug($"{nameof(ShouldWork)} called");
+
+            if (Settings.Profiles.Value == ProfilesEnum.Follower)
+                //LogMsgWithVerboseDebug($"    returning {Settings.FollowerModeSettings.FollowerShouldWork.Value}");
+
+                return Settings.FollowerModeSettings.FollowerShouldWork.Value;
+
+            //LogMsgWithVerboseDebug("    returning false");
+            return false;
+        }
+
+        #endregion
     }
 }

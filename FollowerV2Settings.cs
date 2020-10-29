@@ -10,41 +10,6 @@ namespace FollowerV2
 {
     public class FollowerV2Settings : ISettings
     {
-        public ToggleNode Enable { get; set; } = new ToggleNode(false);
-
-        #region Debug
-
-        [Menu("Debug", 1000)] public EmptyNode EmptyDebug { get; set; } = new EmptyNode();
-        [Menu("Debug", "", 2, 1000)] public ToggleNode Debug { get; set; } = new ToggleNode(false);
-        public ToggleNode VerboseDebug { get; set; } = new ToggleNode(false);
-        [Menu("Show Radius", "", 3, 1000)] public ToggleNode DebugShowRadius { get; set; } = new ToggleNode(false);
-        public HotkeyNode DebugGenerateOnHoverEvents { get; set; } = Keys.L;
-
-        public FollowerCommandsImguiSetting FollowerCommandsImguiSettings = new FollowerCommandsImguiSetting();
-
-        #endregion
-
-        #region Main
-
-        [Menu("Main", 2000)] public EmptyNode EmptyMain { get; set; } = new EmptyNode();
-
-        [Menu("Profiles", "", 2, 2000)]
-        public ListNode Profiles { get; set; } = new ListNode
-        {
-            Values = new List<string>
-            {
-                ProfilesEnum.Disable, ProfilesEnum.Follower, ProfilesEnum.Leader
-            },
-            Value = ProfilesEnum.Disable
-        };
-
-        public RangeNode<int> RandomClickOffset { get; set; } = new RangeNode<int>(10, 5, 100);
-        public ButtonNode ResetToDefaultsButton { get; set; } = new ButtonNode();
-
-        public ListNode NearbyPlayers { get; set; } = new ListNode {Values = new List<string>(), Value = ""};
-
-        #endregion
-
         #region Follower mode related settings
 
         public FollowerModeSetting FollowerModeSettings = new FollowerModeSetting();
@@ -73,6 +38,8 @@ namespace FollowerV2
                 LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName.Value = "";
             };
         }
+
+        public ToggleNode Enable { get; set; } = new ToggleNode(false);
 
         private void ResetAllSettingsToDefaults()
         {
@@ -241,12 +208,13 @@ namespace FollowerV2
                             FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs.Value =
                                 ImGuiExtension.IntSlider("Request timeout ms",
                                     FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs);
-                            
                         }
 
                         if (isFileMode)
                         {
-                            FollowerModeSettings.FollowerModeFileSettings.FilePath.Value = ImGuiExtension.InputText("File path", FollowerModeSettings.FollowerModeFileSettings.FilePath);
+                            FollowerModeSettings.FollowerModeFileSettings.FilePath.Value =
+                                ImGuiExtension.InputText("File path",
+                                    FollowerModeSettings.FollowerModeFileSettings.FilePath);
 
                             FollowerModeSettings.FollowerModeFileSettings.DelayBetweenReads.Value =
                                 ImGuiExtension.IntSlider("Delay between reads",
@@ -280,7 +248,6 @@ namespace FollowerV2
                 }
 
             if (Profiles.Value == ProfilesEnum.Leader)
-            {
                 if (ImGui.TreeNodeEx("Leader Mode Settings", collapsingHeaderFlags))
                 {
                     FollowerModeSettings.FollowerModes.Value = ImGuiExtension.ComboBox("Follower modes",
@@ -295,15 +262,18 @@ namespace FollowerV2
                         ImGui.TextDisabled("This is the network or file mode for LEADER");
                         if (isNetworkMode)
                         {
-                            ImGui.TextDisabled($"Server will run on port \"{LeaderModeSettings.LeaderModeNetworkSettings.ServerPort.Value}\"");
-                            ImGui.TextDisabled($"   hostname: {LeaderModeSettings.LeaderModeNetworkSettings.ServerHostname.Value}");
+                            ImGui.TextDisabled(
+                                $"Server will run on port \"{LeaderModeSettings.LeaderModeNetworkSettings.ServerPort.Value}\"");
+                            ImGui.TextDisabled(
+                                $"   hostname: {LeaderModeSettings.LeaderModeNetworkSettings.ServerHostname.Value}");
                         }
 
                         if (isFileMode)
                         {
-                            ImGui.TextDisabled($"File path to write:");
+                            ImGui.TextDisabled("File path to write:");
                             ImGui.TextDisabled($"   {LeaderModeSettings.LeaderModeFileSettings.FilePath.Value}");
                         }
+
                         ImGui.Spacing();
                         ImGui.Spacing();
                         LeaderModeSettings.LeaderNameToPropagate.Value =
@@ -316,7 +286,8 @@ namespace FollowerV2
                         if (isNetworkMode)
                         {
                             ImGui.Spacing();
-                            LeaderModeSettings.LeaderModeNetworkSettings.StartServer.Value = ImGuiExtension.Checkbox("Start Server Listening",
+                            LeaderModeSettings.LeaderModeNetworkSettings.StartServer.Value = ImGuiExtension.Checkbox(
+                                "Start Server Listening",
                                 LeaderModeSettings.LeaderModeNetworkSettings.StartServer);
                         }
 
@@ -324,7 +295,8 @@ namespace FollowerV2
                         if (isFileMode)
                         {
                             ImGui.Spacing();
-                            LeaderModeSettings.LeaderModeFileSettings.StartFileWriting.Value = ImGuiExtension.Checkbox("Start File Writing",
+                            LeaderModeSettings.LeaderModeFileSettings.StartFileWriting.Value = ImGuiExtension.Checkbox(
+                                "Start File Writing",
                                 LeaderModeSettings.LeaderModeFileSettings.StartFileWriting);
                         }
 
@@ -417,17 +389,20 @@ namespace FollowerV2
                                         ImGui.SliderInt($"Skill cooldown in ms##{skillId}", ref skill.CooldownMs, 100,
                                             10000);
                                         ImGui.Spacing();
-                                        skill.IsMovingSkill = ImGuiExtension.Checkbox($"Is moving skill##{skillId}", skill.IsMovingSkill);
+                                        skill.IsMovingSkill = ImGuiExtension.Checkbox($"Is moving skill##{skillId}",
+                                            skill.IsMovingSkill);
                                         ImGui.Spacing();
 
                                         if (!skill.IsMovingSkill)
                                         {
-                                            skill.HoverEntityType = ImGuiExtension.ComboBox($"Hover entity type##{skillId}",
+                                            skill.HoverEntityType = ImGuiExtension.ComboBox(
+                                                $"Hover entity type##{skillId}",
                                                 skill.HoverEntityType, FollowerSkillHoverEntityType.GetAllAsList());
                                             ImGui.Spacing();
                                             ImGui.SliderInt($"Max range##{skillId}",
                                                 ref skill.MaxRange, 10, 200);
-                                            ImGuiExtension.ToolTipWithText("(?)", "Range to monsters, range to corpse etc.");
+                                            ImGuiExtension.ToolTipWithText("(?)",
+                                                "Range to monsters, range to corpse etc.");
                                             ImGui.Spacing();
                                         }
                                     }
@@ -450,25 +425,30 @@ namespace FollowerV2
                                 ImGui.TextDisabled("        if you have changed your hostname");
                                 ImGui.TextDisabled("    allow the inbound connection on the port in firewall as well");
                                 LeaderModeSettings.LeaderModeNetworkSettings.ServerHostname.Value =
-                                    ImGuiExtension.InputText("Server Hostname", LeaderModeSettings.LeaderModeNetworkSettings.ServerHostname);
+                                    ImGuiExtension.InputText("Server Hostname",
+                                        LeaderModeSettings.LeaderModeNetworkSettings.ServerHostname);
                                 LeaderModeSettings.LeaderModeNetworkSettings.ServerPort.Value =
-                                    ImGuiExtension.InputText("Server Port", LeaderModeSettings.LeaderModeNetworkSettings.ServerPort);
+                                    ImGuiExtension.InputText("Server Port",
+                                        LeaderModeSettings.LeaderModeNetworkSettings.ServerPort);
                                 ImGui.Spacing();
                                 ImGui.TextDisabled("Server management");
                                 ImGui.Spacing();
                                 ImGui.SameLine();
-                                if (ImGui.Button("Restart Server")) LeaderModeSettings.LeaderModeNetworkSettings.ServerRestart.OnPressed();
+                                if (ImGui.Button("Restart Server"))
+                                    LeaderModeSettings.LeaderModeNetworkSettings.ServerRestart.OnPressed();
                                 ImGui.SameLine();
-                                if (ImGui.Button("Stop Server")) LeaderModeSettings.LeaderModeNetworkSettings.ServerStop.OnPressed();
+                                if (ImGui.Button("Stop Server"))
+                                    LeaderModeSettings.LeaderModeNetworkSettings.ServerStop.OnPressed();
                                 ImGui.Spacing();
                             }
 
                             if (isFileMode)
                             {
-                                    LeaderModeSettings.LeaderModeFileSettings.FilePath.Value = ImGuiExtension.InputText("File path",
+                                LeaderModeSettings.LeaderModeFileSettings.FilePath.Value = ImGuiExtension.InputText(
+                                    "File path",
                                     LeaderModeSettings.LeaderModeFileSettings.FilePath);
 
-                                    ImGui.Spacing();
+                                ImGui.Spacing();
                             }
                         }
                     }
@@ -477,9 +457,40 @@ namespace FollowerV2
                     ImGui.Separator();
                     //ImGui.TreePop();
                 }
-
-            }
         }
+
+        #region Debug
+
+        [Menu("Debug", 1000)] public EmptyNode EmptyDebug { get; set; } = new EmptyNode();
+        [Menu("Debug", "", 2, 1000)] public ToggleNode Debug { get; set; } = new ToggleNode(false);
+        public ToggleNode VerboseDebug { get; set; } = new ToggleNode(false);
+        [Menu("Show Radius", "", 3, 1000)] public ToggleNode DebugShowRadius { get; set; } = new ToggleNode(false);
+        public HotkeyNode DebugGenerateOnHoverEvents { get; set; } = Keys.L;
+
+        public FollowerCommandsImguiSetting FollowerCommandsImguiSettings = new FollowerCommandsImguiSetting();
+
+        #endregion
+
+        #region Main
+
+        [Menu("Main", 2000)] public EmptyNode EmptyMain { get; set; } = new EmptyNode();
+
+        [Menu("Profiles", "", 2, 2000)]
+        public ListNode Profiles { get; set; } = new ListNode
+        {
+            Values = new List<string>
+            {
+                ProfilesEnum.Disable, ProfilesEnum.Follower, ProfilesEnum.Leader
+            },
+            Value = ProfilesEnum.Disable
+        };
+
+        public RangeNode<int> RandomClickOffset { get; set; } = new RangeNode<int>(10, 5, 100);
+        public ButtonNode ResetToDefaultsButton { get; set; } = new ButtonNode();
+
+        public ListNode NearbyPlayers { get; set; } = new ListNode {Values = new List<string>(), Value = ""};
+
+        #endregion
     }
 
     public class FollowerModeSetting
@@ -499,7 +510,7 @@ namespace FollowerV2
             {
                 FollowerNetworkActivityModeEnum.Local,
                 FollowerNetworkActivityModeEnum.Network,
-                FollowerNetworkActivityModeEnum.File,
+                FollowerNetworkActivityModeEnum.File
             },
             Value = FollowerNetworkActivityModeEnum.Local
         };
@@ -516,20 +527,19 @@ namespace FollowerV2
 
     public class LeaderModeSetting
     {
+        public FollowerCommandSetting FollowerCommandSetting = new FollowerCommandSetting();
+        public LeaderModeFileSetting LeaderModeFileSettings = new LeaderModeFileSetting();
+
+        public LeaderModeNetworkSetting LeaderModeNetworkSettings = new LeaderModeNetworkSetting();
+
+        public NewFollowerCommandClassSetting NewFollowerCommandClassSetting = new NewFollowerCommandClassSetting();
         public TextNode LeaderNameToPropagate { get; set; } = new TextNode("");
         public ButtonNode SetMyselfAsLeader { get; set; } = new ButtonNode();
         public ToggleNode PropagateWorkingOfFollowers { get; set; } = new ToggleNode(false);
         public HotkeyNode PropagateWorkingOfFollowersHotkey { get; set; } = Keys.F4;
         public RangeNode<int> LeaderProximityRadiusToPropagate { get; set; } = new RangeNode<int>(20, 1, 300);
 
-        public FollowerCommandSetting FollowerCommandSetting = new FollowerCommandSetting();
-
-        public NewFollowerCommandClassSetting NewFollowerCommandClassSetting = new NewFollowerCommandClassSetting();
-
         public RangeNode<int> MinimumFpsThresholdToPropagate { get; set; } = new RangeNode<int>(5, 1, 10);
-
-        public LeaderModeNetworkSetting LeaderModeNetworkSettings = new LeaderModeNetworkSetting();
-        public LeaderModeFileSetting LeaderModeFileSettings = new LeaderModeFileSetting();
     }
 
     public class LeaderModeFileSetting
@@ -560,7 +570,7 @@ namespace FollowerV2
     {
         public TextNode FilePath { get; set; } = new TextNode("C:\\test.txt");
 
-        public RangeNode<int> DelayBetweenReads{ get; set; } = new RangeNode<int>(500, 300, 3000);
+        public RangeNode<int> DelayBetweenReads { get; set; } = new RangeNode<int>(500, 300, 3000);
     }
 
     public class FollowerModeNetworkSetting

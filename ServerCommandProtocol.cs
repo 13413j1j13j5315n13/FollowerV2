@@ -1,20 +1,18 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http;
 using System.Text;
-using System.Threading.Tasks;
 using ExileCore;
 using Newtonsoft.Json;
 
 namespace FollowerV2
 {
-    class ServerCommandProtocol: ICommandProtocol
+    internal class ServerCommandProtocol : ICommandProtocol
     {
         private readonly FollowerV2Settings _followerSettings;
-        private bool _serverIsListening = false;
         private HttpListener _httpListener = new HttpListener();
+        private bool _serverIsListening;
 
         public ServerCommandProtocol(FollowerV2Settings followerSettings)
         {
@@ -52,19 +50,19 @@ namespace FollowerV2
                 HttpListenerContext context = _httpListener.GetContext();
                 HttpListenerRequest request = context.Request;
                 HttpListenerResponse response = context.Response;
-                byte[] buffer = new byte[] { };
+                byte[] buffer = { };
                 response.ContentLength64 = 0;
-                response.StatusCode = (int)HttpStatusCode.OK;
+                response.StatusCode = (int) HttpStatusCode.OK;
 
                 if (request.HttpMethod == "GET")
                 {
                     string responseString = JsonConvert.SerializeObject(obj);
 
-                    buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
+                    buffer = Encoding.UTF8.GetBytes(responseString);
                     response.ContentLength64 = buffer.Length;
                 }
 
-                System.IO.Stream output = response.OutputStream;
+                Stream output = response.OutputStream;
                 output.Write(buffer, 0, buffer.Length);
                 output.Close();
                 // SYNC WORKING SERVER ENDS
@@ -96,10 +94,7 @@ namespace FollowerV2
 
             _httpListener = new HttpListener();
 
-            if (!_httpListener.Prefixes.Any())
-            {
-                AddCurrentPrefix();
-            }
+            if (!_httpListener.Prefixes.Any()) AddCurrentPrefix();
 
             LogMsg("Server has been recreated");
 
@@ -127,15 +122,13 @@ namespace FollowerV2
 
         private string GetServerUrl()
         {
-            return $"http://{_followerSettings.LeaderModeSettings.LeaderModeNetworkSettings.ServerHostname.Value}:{_followerSettings.LeaderModeSettings.LeaderModeNetworkSettings.ServerPort.Value}/";
+            return
+                $"http://{_followerSettings.LeaderModeSettings.LeaderModeNetworkSettings.ServerHostname.Value}:{_followerSettings.LeaderModeSettings.LeaderModeNetworkSettings.ServerPort.Value}/";
         }
 
         private void LogMsg(string msg)
         {
-            if (_followerSettings.Debug.Value && _followerSettings.VerboseDebug.Value)
-            {
-                DebugWindow.LogMsg(msg, 1);
-            }
+            if (_followerSettings.Debug.Value && _followerSettings.VerboseDebug.Value) DebugWindow.LogMsg(msg, 1);
         }
     }
 }

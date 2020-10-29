@@ -18,7 +18,6 @@ namespace FollowerV2
         public const int MouseeventfRightup = 0x0010;
         public const int MouseEventWheel = 0x800;
 
-        // 
         private const int MovementDelay = 10;
         private const int ClickDelay = 1;
 
@@ -32,7 +31,7 @@ namespace FollowerV2
         public static extern bool BlockInput(bool fBlockIt);
 
         /// <summary>
-        /// Sets the cursor position relative to the game window.
+        ///     Sets the cursor position relative to the game window.
         /// </summary>
         /// <param name="x"></param>
         /// <param name="y"></param>
@@ -44,7 +43,7 @@ namespace FollowerV2
         }
 
         /// <summary>
-        /// Sets the cursor position to the center of a given rectangle relative to the game window
+        ///     Sets the cursor position to the center of a given rectangle relative to the game window
         /// </summary>
         /// <param name="position"></param>
         /// <param name="gameWindow"></param>
@@ -55,7 +54,7 @@ namespace FollowerV2
         }
 
         /// <summary>
-        /// Retrieves the cursor's position, in screen coordinates.
+        ///     Retrieves the cursor's position, in screen coordinates.
         /// </summary>
         /// <see>See MSDN documentation for further information.</see>
         [DllImport("user32.dll")]
@@ -206,31 +205,27 @@ namespace FollowerV2
             var step = (float) Math.Sqrt(Vector2.Distance(GetCursorPositionVector(), vec)) * SpeedMouse / 20;
 
             if (step > 6)
-            {
                 for (var i = 0; i < step; i++)
                 {
                     var vector2 = Vector2.SmoothStep(GetCursorPositionVector(), vec, i / step);
                     SetCursorPos((int) vector2.X, (int) vector2.Y);
                     yield return new WaitTime(1);
                 }
-            }
             else
                 SetCursorPos(vec);
         }
 
         public static void SetCursorPosHuman2(Vector2 vec)
         {
-            var step = (float)Math.Sqrt(Vector2.Distance(GetCursorPositionVector(), vec)) * SpeedMouse / 20;
+            var step = (float) Math.Sqrt(Vector2.Distance(GetCursorPositionVector(), vec)) * SpeedMouse / 20;
 
             if (step > 6)
-            {
                 for (var i = 0; i < step; i++)
                 {
                     var vector2 = Vector2.SmoothStep(GetCursorPositionVector(), vec, i / step);
-                    SetCursorPos((int)vector2.X, (int)vector2.Y);
+                    SetCursorPos((int) vector2.X, (int) vector2.Y);
                     Thread.Sleep(5);
                 }
-            }
             else
                 SetCursorPos(vec);
         }
