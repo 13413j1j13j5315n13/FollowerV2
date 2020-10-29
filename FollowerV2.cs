@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using ExileCore;
 using ExileCore.PoEMemory.Components;
@@ -45,7 +46,7 @@ namespace FollowerV2
             Tree = CreateTree();
 
             // Start network and server routines in a separate threads to not block if PoeHUD is in not focused
-            Task.Run(() => MainNetworkRequestsWork());
+            Task.Run(() => MainRequestingWork());
             Task.Run(() => MainCommandProtocolWork());
 
             _nearbyPlayersUpdateCoroutine = new Coroutine(UpdateNearbyPlayersWork(), this, "Update nearby players", true);
@@ -66,8 +67,8 @@ namespace FollowerV2
             //Settings.NearbyPlayers.OnValueSelected += OnNearbyPlayerAsLeaderSelect;
 
             Settings.FollowerModeSettings.FollowerModes.OnValueSelected += OnFollowerModeChange; // local or network
-            Settings.FollowerModeSettings.StartNetworkRequesting.OnValueChanged += OnStartNetworkRequestingValueChanged;
-            Settings.FollowerModeSettings.StartNetworkRequestingHotkey.OnValueChanged +=
+            Settings.FollowerModeSettings.StartRequesting.OnValueChanged += OnStartNetworkRequestingValueChanged;
+            Settings.FollowerModeSettings.StartRequestingHotkey.OnValueChanged +=
                 OnStartNetworkRequestingHotkeyValueChanged;
             Settings.FollowerModeSettings.UseNearbyPlayerAsLeaderButton.OnPressed += OnNearbyPlayerAsLeaderSelect;
 
@@ -82,7 +83,7 @@ namespace FollowerV2
         public override void OnLoad()
         {
             Input.RegisterKey(Settings.LeaderModeSettings.PropagateWorkingOfFollowersHotkey);
-            Input.RegisterKey(Settings.FollowerModeSettings.StartNetworkRequestingHotkey);
+            Input.RegisterKey(Settings.FollowerModeSettings.StartRequestingHotkey);
 
             _delayHelper.AddToDelayManager(nameof(OnPropagateWorkingOfFollowersHotkeyPressed), OnPropagateWorkingOfFollowersHotkeyPressed, 1000);
             _delayHelper.AddToDelayManager(nameof(DebugHoverToLeader), DebugHoverToLeader, 50);
@@ -118,7 +119,7 @@ namespace FollowerV2
                 _delayHelper.CallFunction(nameof(OnPropagateWorkingOfFollowersHotkeyPressed));
             }
 
-            if (Settings.FollowerModeSettings.StartNetworkRequestingHotkey.PressedOnce())
+            if (Settings.FollowerModeSettings.StartRequestingHotkey.PressedOnce())
             {
                 _delayHelper.CallFunction(nameof(StartNetworkRequestingPressed));
             }
@@ -138,6 +139,7 @@ namespace FollowerV2
 
             bool isLocalMode = Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Local;
             bool isNetworkMode = Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network;
+            bool isFileMode = Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.File;
             bool isLeaderProfile = Settings.Profiles.Value == ProfilesEnum.Leader;
             bool isFollowerProfile = Settings.Profiles.Value == ProfilesEnum.Follower;
 
@@ -154,7 +156,7 @@ namespace FollowerV2
             {
                 if (isNetworkMode)
                 {
-                    firstLine = Graphics.DrawText($"Network requesting: {Settings.FollowerModeSettings.StartNetworkRequesting.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
+                    firstLine = Graphics.DrawText($"Network requesting: {Settings.FollowerModeSettings.StartRequesting.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
                     startDrawPoint.Y += firstLine.Y;
                 }
 
@@ -162,7 +164,7 @@ namespace FollowerV2
                 startDrawPoint.Y += firstLine.Y;
             }
 
-            if (isLeaderProfile && isNetworkMode)
+            if (isLeaderProfile && (isNetworkMode || isFileMode))
             {
                 firstLine = Graphics.DrawText($"Propagate working: {Settings.LeaderModeSettings.PropagateWorkingOfFollowers.Value}", startDrawPoint, Color.Yellow, fontHeight, FontAlign.Right);
                 startDrawPoint.Y += firstLine.Y;
@@ -1041,13 +1043,13 @@ namespace FollowerV2
             }
             else if (profile == ProfilesEnum.Leader)
             {
-                Settings.FollowerModeSettings.StartNetworkRequesting.Value = false;
+                Settings.FollowerModeSettings.StartRequesting.Value = false;
             }
             else if (profile == ProfilesEnum.Disable)
             {
                 _commandProtocol.Stop();
                 Settings.LeaderModeSettings.LeaderModeNetworkSettings.StartServer.Value = false;
-                Settings.FollowerModeSettings.StartNetworkRequesting.Value = false;
+                Settings.FollowerModeSettings.StartRequesting.Value = false;
             }
             else
             {
@@ -1063,7 +1065,7 @@ namespace FollowerV2
             {
                 //_server.KillServer();
                 Settings.LeaderModeSettings.LeaderModeNetworkSettings.StartServer.Value = false;
-                Settings.FollowerModeSettings.StartNetworkRequesting.Value = false;
+                Settings.FollowerModeSettings.StartRequesting.Value = false;
             }
             else if (newFollowerMode == FollowerNetworkActivityModeEnum.Network)
             {
@@ -1097,7 +1099,7 @@ namespace FollowerV2
         {
             LogMsgWithVerboseDebug("OnStartNetworkRequestingHotkeyValueChanged called");
 
-            Input.RegisterKey(Settings.FollowerModeSettings.StartNetworkRequestingHotkey);
+            Input.RegisterKey(Settings.FollowerModeSettings.StartRequestingHotkey);
         }
 
         private void OnPropagateWorkingOfFollowersHotkeyPressed()
@@ -1123,20 +1125,49 @@ namespace FollowerV2
             if (!value) Settings.FollowerModeSettings.FollowerShouldWork.Value = false;
         }
 
-        private IEnumerator MainNetworkRequestsWork()
+        private IEnumerator MainRequestingWork()
         {
-            LogMsgWithVerboseDebug("Starting MainNetworkRequestsWork function");
+            LogMsgWithVerboseDebug($"{nameof(MainRequestingWork)} called");
 
             while (true)
             {
-                if (Settings.Profiles.Value != ProfilesEnum.Follower || !Settings.FollowerModeSettings.StartNetworkRequesting.Value)
+                if (Settings.Profiles.Value != ProfilesEnum.Follower || !Settings.FollowerModeSettings.StartRequesting.Value)
                 {
                     Thread.Sleep(100);
                     continue;
                 }
 
-                DoFollowerNetworkActivityWork();
-                Thread.Sleep(Settings.FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests.Value);
+                Func<string> func = null;
+                var delay = 1000;
+
+                if (Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network)
+                {
+                    func = GetFollowerNetworkActivityReply;
+                    delay = Settings.FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests.Value;
+                }
+                else if (Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.File)
+                {
+                    func = GetFollowerFileReadReply;
+                    delay = Settings.FollowerModeSettings.FollowerModeFileSettings.DelayBetweenReads.Value;
+                }
+
+                string reply = null;
+                try
+                {
+                    reply = func();
+                }
+                catch (Exception e)
+                {
+                    LogError($"{Name}: Exception! \nMessage: {e.Message} \n{e.StackTrace}", 30);
+                }
+
+                if (!String.IsNullOrEmpty(reply))
+                {
+                    NetworkActivityObject networkActivityObject = JsonConvert.DeserializeObject<NetworkActivityObject>(reply);
+                    ProcessNetworkActivityResponse(networkActivityObject);
+                }
+
+                Thread.Sleep(delay);
             }
         }
 
@@ -1336,23 +1367,25 @@ namespace FollowerV2
             Mouse.SetCursorPosHuman2(finalPos);
         }
 
-        private void DoFollowerNetworkActivityWork()
+        private string GetFollowerNetworkActivityReply()
         {
-            LogMsgWithVerboseDebug("DoFollowerNetworkActivityWork called");
+            LogMsgWithVerboseDebug($"Function {nameof(GetFollowerNetworkActivityReply)} called");
+
+            string result = null;
 
             string url = Settings.FollowerModeSettings.FollowerModeNetworkSettings.Url.Value;
             int timeoutMs = Settings.FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs.Value;
 
             if (string.IsNullOrEmpty(url))
             {
-                LogMsgWithVerboseDebug("    url in DoFollowerNetworkActivityWork was null or empty");
-                return;
+                LogMsgWithVerboseDebug("    url in GetFollowerNetworkActivityReply was null or empty");
+                return null;
             }
 
             if (!NetworkHelper.IsUrlAlive(url, timeoutMs))
             {
                 LogMsgWithVerboseDebug("    url is not alive");
-                return;
+                return null;
             }
 
             if (_networkRequestStatusRetries > 5)
@@ -1363,29 +1396,40 @@ namespace FollowerV2
 
             if (_networkRequestStatus == NetworkRequestStatus.Working)
             {
-                LogMsgWithVerboseDebug("    request has not been finished in DoFollowerNetworkActivityWork");
+                LogMsgWithVerboseDebug("    request has not been finished in GetFollowerNetworkActivityReply");
                 _networkRequestStatusRetries++;
-                return;
+                return null;
             }
 
             _networkRequestStatus = NetworkRequestStatus.Working;
 
             try
             {
-                string reply = NetworkHelper.GetNetworkResponse(url, timeoutMs);
-
-                if (!String.IsNullOrEmpty(reply))
-                {
-                    NetworkActivityObject networkActivityObject = JsonConvert.DeserializeObject<NetworkActivityObject>(reply);
-                    ProcessNetworkActivityResponse(networkActivityObject);
-                }
+                result = NetworkHelper.GetNetworkResponse(url, timeoutMs);   
             }
             finally
             {
                 _networkRequestStatus = NetworkRequestStatus.Finished;
             }
 
-            return;
+            return result;
+        }
+
+        private string GetFollowerFileReadReply()
+        {
+            string filePath = Settings.FollowerModeSettings.FollowerModeFileSettings.FilePath.Value;
+
+
+            try
+            {
+                return File.ReadAllText(filePath);
+            }
+            // These exceptions are OK to skip
+            catch (DirectoryNotFoundException e) {}
+            catch (IOException e) { }
+
+            return null;
+
         }
 
         private List<Entity> GetEntitiesByEntityTypeAndSortByDistance(EntityType entityType, Entity entity)
@@ -1477,8 +1521,8 @@ namespace FollowerV2
         {
             LogMsgWithVerboseDebug("StartNetworkRequestingPressed called");
 
-            Settings.FollowerModeSettings.StartNetworkRequesting.Value =
-                !Settings.FollowerModeSettings.StartNetworkRequesting.Value;
+            Settings.FollowerModeSettings.StartRequesting.Value =
+                !Settings.FollowerModeSettings.StartRequesting.Value;
         }
 
         private ICollection<Entity> GetEntities()

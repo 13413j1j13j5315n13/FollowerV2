@@ -93,8 +93,8 @@ namespace FollowerV2
             FollowerModeSettings.FollowerUseCombat.Value = false;
             FollowerModeSettings.FollowerModes.Value = FollowerNetworkActivityModeEnum.Local;
             FollowerModeSettings.LeaderProximityRadius.Value = 100;
-            FollowerModeSettings.StartNetworkRequesting.Value = false;
-            FollowerModeSettings.StartNetworkRequestingHotkey.Value = Keys.F3;
+            FollowerModeSettings.StartRequesting.Value = false;
+            FollowerModeSettings.StartRequestingHotkey.Value = Keys.F3;
             FollowerModeSettings.MoveHotkey.Value = Keys.T;
             FollowerModeSettings.MoveLogicCooldown.Value = 50;
             FollowerModeSettings.MinimumFpsThreshold.Value = 5;
@@ -102,6 +102,8 @@ namespace FollowerV2
             FollowerModeSettings.FollowerModeNetworkSettings.Url.Value = "";
             FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests.Value = 1000;
             FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs.Value = 3000;
+
+            FollowerModeSettings.FollowerModeFileSettings.FilePath.Value = "C:\\test.txt";
 
             LeaderModeSettings.LeaderNameToPropagate.Value = "";
             LeaderModeSettings.PropagateWorkingOfFollowers.Value = false;
@@ -123,6 +125,9 @@ namespace FollowerV2
         public void DrawSettings()
         {
             var collapsingHeaderFlags = ImGuiTreeNodeFlags.CollapsingHeader;
+            var isNetworkMode =
+                FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network;
+            var isFileMode = FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.File;
 
             Debug.Value = ImGuiExtension.Checkbox("Debug", Debug);
             ImGui.Spacing();
@@ -209,37 +214,56 @@ namespace FollowerV2
                         ImGuiExtension.ToolTipWithText("(?)", "Set \"Debug: show radius\" on to see the radius");
                         ImGuiExtension.ToolTipWithText("(?)", "Color: Red");
                     }
-                    else if (FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network)
+                    else if (isNetworkMode || isFileMode)
                     {
-                        ImGui.TextDisabled("This mode will make network requests and use ONLY values from the server");
+                        ImGui.TextDisabled("This mode will make requests and use ONLY values from the server or file");
                         ImGui.TextDisabled("All local values are disabled and will not be used");
-                        ImGui.TextDisabled(
-                            "P.S. On server you might want to use something such as \"ngrok\" or \"localtunnel\"");
-                        ImGui.TextDisabled("    if your server is outside of localhost");
                         ImGui.Spacing();
                         ImGui.Spacing();
 
-                        FollowerModeSettings.FollowerModeNetworkSettings.Url.Value =
-                            ImGuiExtension.InputText("Server URL",
-                                FollowerModeSettings.FollowerModeNetworkSettings.Url);
-                        ImGuiExtension.ToolTipWithText("(?)", "Provide the URL this follower will connect");
+                        if (isNetworkMode)
+                        {
+                            ImGui.TextDisabled(
+                                "P.S. On server you might want to use something such as \"ngrok\" or \"localtunnel\"");
+                            ImGui.TextDisabled("    if your server is outside of localhost");
+                            ImGui.Spacing();
+                            ImGui.Spacing();
 
-                        FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests.Value =
-                            ImGuiExtension.IntSlider("Request delay",
-                                FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests);
+                            FollowerModeSettings.FollowerModeNetworkSettings.Url.Value =
+                                ImGuiExtension.InputText("Server URL",
+                                    FollowerModeSettings.FollowerModeNetworkSettings.Url);
+                            ImGuiExtension.ToolTipWithText("(?)", "Provide the URL this follower will connect");
+
+                            FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests.Value =
+                                ImGuiExtension.IntSlider("Request delay",
+                                    FollowerModeSettings.FollowerModeNetworkSettings.DelayBetweenRequests);
+                            ImGui.Spacing();
+                            FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs.Value =
+                                ImGuiExtension.IntSlider("Request timeout ms",
+                                    FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs);
+                            
+                        }
+
+                        if (isFileMode)
+                        {
+                            FollowerModeSettings.FollowerModeFileSettings.FilePath.Value = ImGuiExtension.InputText("File path", FollowerModeSettings.FollowerModeFileSettings.FilePath);
+
+                            FollowerModeSettings.FollowerModeFileSettings.DelayBetweenReads.Value =
+                                ImGuiExtension.IntSlider("Delay between reads",
+                                    FollowerModeSettings.FollowerModeFileSettings.DelayBetweenReads);
+                        }
+
                         ImGui.Spacing();
-                        FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs.Value =
-                            ImGuiExtension.IntSlider("Request timeout ms",
-                                FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs);
+                        ImGui.Spacing();
+
+                        FollowerModeSettings.StartRequesting.Value =
+                            ImGuiExtension.Checkbox("Start requesting",
+                                FollowerModeSettings.StartRequesting);
+                        FollowerModeSettings.StartRequestingHotkey.Value = ImGuiExtension.HotkeySelector(
+                            "Hotkey to start requesting", FollowerModeSettings.StartRequestingHotkey);
                         ImGui.Spacing();
                         ImGui.Spacing();
-                        FollowerModeSettings.StartNetworkRequesting.Value =
-                            ImGuiExtension.Checkbox("Start network requesting",
-                                FollowerModeSettings.StartNetworkRequesting);
-                        FollowerModeSettings.StartNetworkRequestingHotkey.Value = ImGuiExtension.HotkeySelector(
-                            "Hotkey to start network requesting", FollowerModeSettings.StartNetworkRequestingHotkey);
-                        ImGui.Spacing();
-                        ImGui.Spacing();
+
                         ImGui.TextDisabled(
                             "The next hotkey will be used for moving. Follower will click it after hovering");
                         FollowerModeSettings.MoveHotkey.Value =
@@ -257,10 +281,6 @@ namespace FollowerV2
 
             if (Profiles.Value == ProfilesEnum.Leader)
             {
-                var isNetworkMode =
-                    FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network;
-                var isFileMode = FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.File;
-
                 if (ImGui.TreeNodeEx("Leader Mode Settings", collapsingHeaderFlags))
                 {
                     FollowerModeSettings.FollowerModes.Value = ImGuiExtension.ComboBox("Follower modes",
@@ -485,9 +505,10 @@ namespace FollowerV2
         };
 
         public FollowerModeNetworkSetting FollowerModeNetworkSettings { get; set; } = new FollowerModeNetworkSetting();
+        public FollowerModeFileSetting FollowerModeFileSettings { get; set; } = new FollowerModeFileSetting();
         public RangeNode<int> LeaderProximityRadius { get; set; } = new RangeNode<int>(100, 10, 300);
-        public ToggleNode StartNetworkRequesting { get; set; } = new ToggleNode(false);
-        public HotkeyNode StartNetworkRequestingHotkey { get; set; } = Keys.F3;
+        public ToggleNode StartRequesting { get; set; } = new ToggleNode(false);
+        public HotkeyNode StartRequestingHotkey { get; set; } = Keys.F3;
         public HotkeyNode MoveHotkey { get; set; } = Keys.T;
         public RangeNode<int> MoveLogicCooldown { get; set; } = new RangeNode<int>(50, 20, 300);
         public RangeNode<int> MinimumFpsThreshold { get; set; } = new RangeNode<int>(5, 1, 10);
@@ -533,6 +554,13 @@ namespace FollowerV2
         public ButtonNode UseNearbyPlayerNameButton { get; set; } = new ButtonNode();
 
         public ButtonNode AddNewFollowerButton { get; set; } = new ButtonNode();
+    }
+
+    public class FollowerModeFileSetting
+    {
+        public TextNode FilePath { get; set; } = new TextNode("C:\\test.txt");
+
+        public RangeNode<int> DelayBetweenReads{ get; set; } = new RangeNode<int>(500, 300, 3000);
     }
 
     public class FollowerModeNetworkSetting
