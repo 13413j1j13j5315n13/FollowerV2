@@ -34,7 +34,7 @@ namespace FollowerV2
 
         private int _networkRequestStatusRetries = 0;
 
-        private Server _server = null;
+        private ICommandProtocol _commandProtocol = null;
 
         private FollowerState _followerState = new FollowerState();
 
@@ -46,7 +46,7 @@ namespace FollowerV2
 
             // Start network and server routines in a separate threads to not block if PoeHUD is in not focused
             Task.Run(() => MainNetworkRequestsWork());
-            Task.Run(() => MainServerWork());
+            Task.Run(() => MainCommandProtocolWork());
 
             _nearbyPlayersUpdateCoroutine = new Coroutine(UpdateNearbyPlayersWork(), this, "Update nearby players", true);
             _followerCoroutine = new Coroutine(MainFollowerWork(), this, "Follower coroutine", true);
@@ -72,9 +72,9 @@ namespace FollowerV2
             Settings.FollowerModeSettings.UseNearbyPlayerAsLeaderButton.OnPressed += OnNearbyPlayerAsLeaderSelect;
 
             Settings.LeaderModeSettings.SetMyselfAsLeader.OnPressed += OnSetMyselfAsLeaderToPropagateChanged;
-            Settings.LeaderModeSettings.ServerStop.OnPressed += (() => _server.KillServer());
-            Settings.LeaderModeSettings.ServerRestart.OnPressed += (() => _server.RestartServer());
-            Settings.LeaderModeSettings.StartServer.OnValueChanged += OnStartServerValueChanged;
+            Settings.LeaderModeSettings.LeaderModeNetworkSettings.ServerStop.OnPressed += (() => _commandProtocol.Stop());
+            Settings.LeaderModeSettings.LeaderModeNetworkSettings.ServerRestart.OnPressed += (() => _commandProtocol.Restart());
+            Settings.LeaderModeSettings.LeaderModeNetworkSettings.StartServer.OnValueChanged += OnStartServerValueChanged;
             Settings.LeaderModeSettings.PropagateWorkingOfFollowersHotkey.OnValueChanged +=
                 OnPropagateWorkingOfFollowersHotkeyValueChanged;
         }
@@ -1036,18 +1036,17 @@ namespace FollowerV2
 
             if (profile == ProfilesEnum.Follower)
             {
-                //_server.KillServer();
-                Settings.LeaderModeSettings.StartServer.Value = false;
+                _commandProtocol.Stop();
+                Settings.LeaderModeSettings.LeaderModeNetworkSettings.StartServer.Value = false;
             }
             else if (profile == ProfilesEnum.Leader)
             {
                 Settings.FollowerModeSettings.StartNetworkRequesting.Value = false;
-                //_server.RestartServer();
             }
             else if (profile == ProfilesEnum.Disable)
             {
-                //_server.KillServer();
-                Settings.LeaderModeSettings.StartServer.Value = false;
+                _commandProtocol.Stop();
+                Settings.LeaderModeSettings.LeaderModeNetworkSettings.StartServer.Value = false;
                 Settings.FollowerModeSettings.StartNetworkRequesting.Value = false;
             }
             else
@@ -1063,7 +1062,7 @@ namespace FollowerV2
             if (newFollowerMode == FollowerNetworkActivityModeEnum.Local)
             {
                 //_server.KillServer();
-                Settings.LeaderModeSettings.StartServer.Value = false;
+                Settings.LeaderModeSettings.LeaderModeNetworkSettings.StartServer.Value = false;
                 Settings.FollowerModeSettings.StartNetworkRequesting.Value = false;
             }
             else if (newFollowerMode == FollowerNetworkActivityModeEnum.Network)
@@ -1170,36 +1169,73 @@ namespace FollowerV2
             }
         }
 
-        private IEnumerator MainServerWork()
+        private IEnumerator MainCommandProtocolWork()
         {
-            LogMsgWithVerboseDebug($"Starting {nameof(MainServerWork)} function");
+            LogMsgWithVerboseDebug($"Starting {nameof(MainCommandProtocolWork)} function");
 
             while (true)
             {
-                if (Settings.Profiles.Value != ProfilesEnum.Leader || !Settings.LeaderModeSettings.StartServer.Value)
+                if (Settings.Profiles.Value != ProfilesEnum.Leader)
                 {
                     Thread.Sleep(100);
                     continue;
                 }
 
-                if (_server == null)
+                bool shouldWork =
+                    (Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.File &&
+                     Settings.LeaderModeSettings.LeaderModeFileSettings.StartFileWriting.Value) ||
+                    (Settings.FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network &&
+                     Settings.LeaderModeSettings.LeaderModeNetworkSettings.StartServer.Value);
+
+                try
                 {
-                    try
-                    {
-                        _server = new Server(Settings);
-                        _server.RestartServer();
-                    }
-                    catch (Exception e)
-                    {
-                        LogMsgWithDebug($"Initializing Server failed.\n{e.Message}\n{e.StackTrace}");
-                    }
+                    InitCommandProtocol();
+
+                    if (shouldWork) _commandProtocol?.Work(CreateNetworkActivityObject());
+                }
+                catch (Exception e)
+                {
+                    LogError($"{Name}: Exception! \nMessage: {e.Message} \n{e.StackTrace}", 30);
                 }
 
-                LogMsgWithVerboseDebug("MainServerWork: Starting the server and listening");
-
-                _server.Listen();
-
                 Thread.Sleep(50);
+            }
+        }
+
+        private void InitCommandProtocol()
+        {
+            bool shouldUseServerProtocol = Settings.FollowerModeSettings.FollowerModes.Value ==
+                                           FollowerNetworkActivityModeEnum.Network;
+            bool shouldUseFileProtocol = Settings.FollowerModeSettings.FollowerModes.Value ==
+                                         FollowerNetworkActivityModeEnum.File;
+            bool shouldBeDisabled = Settings.FollowerModeSettings.FollowerModes.Value ==
+                                    FollowerNetworkActivityModeEnum.Local;
+
+            if (shouldBeDisabled)
+            {
+                _commandProtocol?.Stop();
+                _commandProtocol = null;
+            }
+            else if (shouldUseServerProtocol)
+            {
+                if (_commandProtocol is ServerCommandProtocol) return;
+
+                _commandProtocol?.Stop();
+                _commandProtocol = new ServerCommandProtocol(Settings);
+                _commandProtocol.Restart();
+            }
+            else if (shouldUseFileProtocol)
+            {
+
+                if (_commandProtocol is FileCommandProtocol) return;
+
+                _commandProtocol?.Stop();
+                _commandProtocol = new FileCommandProtocol(Settings);
+                _commandProtocol.Restart();
+            }
+            else
+            {
+                throw new Exception("Exception in InitCommandProtocol");
             }
         }
 
@@ -1480,6 +1516,17 @@ namespace FollowerV2
             return keys;
         }
 
+        private NetworkActivityObject CreateNetworkActivityObject()
+        {
+            return new NetworkActivityObject
+            {
+                FollowersShouldWork = Settings.LeaderModeSettings.PropagateWorkingOfFollowers.Value,
+                LeaderName = Settings.LeaderModeSettings.LeaderNameToPropagate.Value,
+                LeaderProximityRadius = Settings.LeaderModeSettings.LeaderProximityRadiusToPropagate.Value,
+                MinimumFpsThreshold = Settings.LeaderModeSettings.MinimumFpsThresholdToPropagate.Value,
+                FollowerCommandSettings = Settings.LeaderModeSettings.FollowerCommandSetting
+            };
+        }
 
         private void DebugHoverToLeader()
         {

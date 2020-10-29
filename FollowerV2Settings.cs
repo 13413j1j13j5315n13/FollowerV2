@@ -104,9 +104,6 @@ namespace FollowerV2
             FollowerModeSettings.FollowerModeNetworkSettings.RequestTimeoutMs.Value = 3000;
 
             LeaderModeSettings.LeaderNameToPropagate.Value = "";
-            LeaderModeSettings.ServerHostname.Value = "localhost";
-            LeaderModeSettings.ServerPort.Value = "4412";
-            LeaderModeSettings.StartServer.Value = false;
             LeaderModeSettings.PropagateWorkingOfFollowers.Value = false;
             LeaderModeSettings.PropagateWorkingOfFollowersHotkey.Value = Keys.F4;
             LeaderModeSettings.LeaderProximityRadiusToPropagate.Value = 100;
@@ -114,6 +111,13 @@ namespace FollowerV2
             LeaderModeSettings.MinimumFpsThresholdToPropagate.Value = 5;
 
             LeaderModeSettings.NewFollowerCommandClassSetting.FollowerName.Value = "";
+
+            LeaderModeSettings.LeaderModeNetworkSettings.ServerHostname.Value = "localhost";
+            LeaderModeSettings.LeaderModeNetworkSettings.ServerPort.Value = "4412";
+            LeaderModeSettings.LeaderModeNetworkSettings.StartServer.Value = false;
+
+            LeaderModeSettings.LeaderModeFileSettings.FilePath.Value = "C:\\test.txt";
+            LeaderModeSettings.LeaderModeFileSettings.StartFileWriting.Value = false;
         }
 
         public void DrawSettings()
@@ -252,6 +256,11 @@ namespace FollowerV2
                 }
 
             if (Profiles.Value == ProfilesEnum.Leader)
+            {
+                var isNetworkMode =
+                    FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network;
+                var isFileMode = FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.File;
+
                 if (ImGui.TreeNodeEx("Leader Mode Settings", collapsingHeaderFlags))
                 {
                     FollowerModeSettings.FollowerModes.Value = ImGuiExtension.ComboBox("Follower modes",
@@ -261,11 +270,20 @@ namespace FollowerV2
                     {
                         ImGui.TextDisabled("Local mode for leader does not contain any settings");
                     }
-                    else if (FollowerModeSettings.FollowerModes.Value == FollowerNetworkActivityModeEnum.Network)
+                    else if (isNetworkMode || isFileMode)
                     {
-                        ImGui.TextDisabled("This is the network mode for LEADER");
-                        ImGui.TextDisabled($"Server will run on port \"{LeaderModeSettings.ServerPort.Value}\"");
-                        ImGui.TextDisabled($"   hostname: {LeaderModeSettings.ServerHostname.Value}");
+                        ImGui.TextDisabled("This is the network or file mode for LEADER");
+                        if (isNetworkMode)
+                        {
+                            ImGui.TextDisabled($"Server will run on port \"{LeaderModeSettings.LeaderModeNetworkSettings.ServerPort.Value}\"");
+                            ImGui.TextDisabled($"   hostname: {LeaderModeSettings.LeaderModeNetworkSettings.ServerHostname.Value}");
+                        }
+
+                        if (isFileMode)
+                        {
+                            ImGui.TextDisabled($"File path to write:");
+                            ImGui.TextDisabled($"   {LeaderModeSettings.LeaderModeFileSettings.FilePath.Value}");
+                        }
                         ImGui.Spacing();
                         ImGui.Spacing();
                         LeaderModeSettings.LeaderNameToPropagate.Value =
@@ -275,9 +293,20 @@ namespace FollowerV2
 
                         if (ImGui.Button("Set myself as leader")) LeaderModeSettings.SetMyselfAsLeader.OnPressed();
 
-                        ImGui.Spacing();
-                        LeaderModeSettings.StartServer.Value = ImGuiExtension.Checkbox("Start Server Listening",
-                            LeaderModeSettings.StartServer);
+                        if (isNetworkMode)
+                        {
+                            ImGui.Spacing();
+                            LeaderModeSettings.LeaderModeNetworkSettings.StartServer.Value = ImGuiExtension.Checkbox("Start Server Listening",
+                                LeaderModeSettings.LeaderModeNetworkSettings.StartServer);
+                        }
+
+
+                        if (isFileMode)
+                        {
+                            ImGui.Spacing();
+                            LeaderModeSettings.LeaderModeFileSettings.StartFileWriting.Value = ImGuiExtension.Checkbox("Start File Writing",
+                                LeaderModeSettings.LeaderModeFileSettings.StartFileWriting);
+                        }
 
                         ImGui.Spacing();
                         LeaderModeSettings.PropagateWorkingOfFollowers.Value = ImGuiExtension.Checkbox(
@@ -388,28 +417,39 @@ namespace FollowerV2
                                     ImGui.Spacing();
                                 }
 
-                        if (ImGui.TreeNodeEx("Advanced leader mode settings"))
+                        if ((isNetworkMode || isFileMode) && ImGui.TreeNodeEx("Advanced leader mode settings"))
                         {
-                            ImGui.TextDisabled(
-                                "Remember to restart the server if you have changed the port or the hostname");
-                            ImGui.TextDisabled(
-                                "    run \"netsh http add urlacl url=http://HOSTNAME:PORT/\" user=YOUR_USER");
-                            ImGui.TextDisabled(
-                                "    example \"netsh http add urlacl url=http://+:4412/\" user=YOUR_USER");
-                            ImGui.TextDisabled("        if you have changed your hostname");
-                            ImGui.TextDisabled("    allow the inbound connection on the port in firewall as well");
-                            LeaderModeSettings.ServerHostname.Value =
-                                ImGuiExtension.InputText("Server Hostname", LeaderModeSettings.ServerHostname);
-                            LeaderModeSettings.ServerPort.Value =
-                                ImGuiExtension.InputText("Server Port", LeaderModeSettings.ServerPort);
-                            ImGui.Spacing();
-                            ImGui.TextDisabled("Server management");
-                            ImGui.Spacing();
-                            ImGui.SameLine();
-                            if (ImGui.Button("Restart Server")) LeaderModeSettings.ServerRestart.OnPressed();
-                            ImGui.SameLine();
-                            if (ImGui.Button("Stop Server")) LeaderModeSettings.ServerStop.OnPressed();
-                            ImGui.Spacing();
+                            if (isNetworkMode)
+                            {
+                                ImGui.TextDisabled(
+                                    "Remember to restart the server if you have changed the port or the hostname");
+                                ImGui.TextDisabled(
+                                    "    run \"netsh http add urlacl url=http://HOSTNAME:PORT/\" user=YOUR_USER");
+                                ImGui.TextDisabled(
+                                    "    example \"netsh http add urlacl url=http://+:4412/\" user=YOUR_USER");
+                                ImGui.TextDisabled("        if you have changed your hostname");
+                                ImGui.TextDisabled("    allow the inbound connection on the port in firewall as well");
+                                LeaderModeSettings.LeaderModeNetworkSettings.ServerHostname.Value =
+                                    ImGuiExtension.InputText("Server Hostname", LeaderModeSettings.LeaderModeNetworkSettings.ServerHostname);
+                                LeaderModeSettings.LeaderModeNetworkSettings.ServerPort.Value =
+                                    ImGuiExtension.InputText("Server Port", LeaderModeSettings.LeaderModeNetworkSettings.ServerPort);
+                                ImGui.Spacing();
+                                ImGui.TextDisabled("Server management");
+                                ImGui.Spacing();
+                                ImGui.SameLine();
+                                if (ImGui.Button("Restart Server")) LeaderModeSettings.LeaderModeNetworkSettings.ServerRestart.OnPressed();
+                                ImGui.SameLine();
+                                if (ImGui.Button("Stop Server")) LeaderModeSettings.LeaderModeNetworkSettings.ServerStop.OnPressed();
+                                ImGui.Spacing();
+                            }
+
+                            if (isFileMode)
+                            {
+                                    LeaderModeSettings.LeaderModeFileSettings.FilePath.Value = ImGuiExtension.InputText("File path",
+                                    LeaderModeSettings.LeaderModeFileSettings.FilePath);
+
+                                    ImGui.Spacing();
+                            }
                         }
                     }
 
@@ -417,6 +457,8 @@ namespace FollowerV2
                     ImGui.Separator();
                     //ImGui.TreePop();
                 }
+
+            }
         }
     }
 
@@ -436,7 +478,8 @@ namespace FollowerV2
             Values = new List<string>
             {
                 FollowerNetworkActivityModeEnum.Local,
-                FollowerNetworkActivityModeEnum.Network
+                FollowerNetworkActivityModeEnum.Network,
+                FollowerNetworkActivityModeEnum.File,
             },
             Value = FollowerNetworkActivityModeEnum.Local
         };
@@ -454,11 +497,6 @@ namespace FollowerV2
     {
         public TextNode LeaderNameToPropagate { get; set; } = new TextNode("");
         public ButtonNode SetMyselfAsLeader { get; set; } = new ButtonNode();
-        public TextNode ServerHostname { get; set; } = new TextNode("localhost");
-        public TextNode ServerPort { get; set; } = new TextNode("4412");
-        public ToggleNode StartServer { get; set; } = new ToggleNode(false);
-        public ButtonNode ServerRestart { get; set; } = new ButtonNode();
-        public ButtonNode ServerStop { get; set; } = new ButtonNode();
         public ToggleNode PropagateWorkingOfFollowers { get; set; } = new ToggleNode(false);
         public HotkeyNode PropagateWorkingOfFollowersHotkey { get; set; } = Keys.F4;
         public RangeNode<int> LeaderProximityRadiusToPropagate { get; set; } = new RangeNode<int>(20, 1, 300);
@@ -468,6 +506,24 @@ namespace FollowerV2
         public NewFollowerCommandClassSetting NewFollowerCommandClassSetting = new NewFollowerCommandClassSetting();
 
         public RangeNode<int> MinimumFpsThresholdToPropagate { get; set; } = new RangeNode<int>(5, 1, 10);
+
+        public LeaderModeNetworkSetting LeaderModeNetworkSettings = new LeaderModeNetworkSetting();
+        public LeaderModeFileSetting LeaderModeFileSettings = new LeaderModeFileSetting();
+    }
+
+    public class LeaderModeFileSetting
+    {
+        public TextNode FilePath { get; set; } = new TextNode("C:\\test.txt");
+        public ToggleNode StartFileWriting { get; set; } = new ToggleNode(false);
+    }
+
+    public class LeaderModeNetworkSetting
+    {
+        public TextNode ServerHostname { get; set; } = new TextNode("localhost");
+        public TextNode ServerPort { get; set; } = new TextNode("4412");
+        public ToggleNode StartServer { get; set; } = new ToggleNode(false);
+        public ButtonNode ServerRestart { get; set; } = new ButtonNode();
+        public ButtonNode ServerStop { get; set; } = new ButtonNode();
     }
 
     public class NewFollowerCommandClassSetting
@@ -505,5 +561,6 @@ namespace FollowerV2
     {
         public static string Local = "local";
         public static string Network = "network";
+        public static string File = "file";
     }
 }
